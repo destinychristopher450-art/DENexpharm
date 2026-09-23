@@ -1,0 +1,1362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>DENexpharm | Pharmacy Learning Platform</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            background: #f4f7fb;
+            color: #172033;
+            line-height: 1.5;
+        }
+
+        button,
+        select,
+        input {
+            font: inherit;
+        }
+
+        button {
+            cursor: pointer;
+        }
+
+        .topbar {
+            background: #0b5ed7;
+            color: white;
+            padding: 14px 18px;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, .12);
+        }
+
+        .topbar-inner {
+            max-width: 1200px;
+            margin: auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 15px;
+        }
+
+        .brand {
+            font-size: 1.35rem;
+            font-weight: 800;
+        }
+
+        .brand small {
+            display: block;
+            font-size: .7rem;
+            opacity: .85;
+            font-weight: normal;
+        }
+
+        .menu-btn {
+            background: white;
+            color: #0b5ed7;
+            border: 0;
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-weight: bold;
+        }
+
+        .container {
+            width: min(1200px, 94%);
+            margin: 22px auto 50px;
+        }
+
+        .hero {
+            background: linear-gradient(135deg, #0b5ed7, #073b91);
+            color: white;
+            padding: 30px 22px;
+            border-radius: 18px;
+            margin-bottom: 20px;
+        }
+
+        .hero h1 {
+            font-size: clamp(1.8rem, 5vw, 3rem);
+            margin-bottom: 8px;
+        }
+
+        .hero p {
+            max-width: 750px;
+            opacity: .94;
+        }
+
+        .hero-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .btn {
+            border: 0;
+            border-radius: 9px;
+            padding: 11px 16px;
+            font-weight: 700;
+        }
+
+        .btn-primary {
+            background: white;
+            color: #0b5ed7;
+        }
+
+        .btn-dark {
+            background: #172033;
+            color: white;
+        }
+
+        .btn-success {
+            background: #198754;
+            color: white;
+        }
+
+        .btn-premium {
+            background: #ffc107;
+            color: #222;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .section {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 3px 15px rgba(25, 45, 80, .07);
+        }
+
+        .section h2 {
+            margin-bottom: 6px;
+            color: #0b5ed7;
+        }
+
+        .section-subtitle {
+            color: #687386;
+            margin-bottom: 16px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+            gap: 14px;
+        }
+
+        .card {
+            border: 1px solid #e3e9f2;
+            border-radius: 13px;
+            padding: 18px;
+            background: #fff;
+            transition: .2s;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 7px 20px rgba(0, 0, 0, .07);
+        }
+
+        .card h3 {
+            margin-bottom: 7px;
+        }
+
+        .card p {
+            color: #697386;
+            font-size: .92rem;
+            margin-bottom: 12px;
+        }
+
+        .icon {
+            font-size: 2rem;
+            margin-bottom: 8px;
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 12px;
+        }
+
+        label {
+            display: block;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        select,
+        input[type="text"],
+        input[type="email"],
+        input[type="number"] {
+            width: 100%;
+            border: 1px solid #ccd5e2;
+            border-radius: 8px;
+            padding: 11px;
+            background: white;
+            outline: none;
+        }
+
+        select:focus,
+        input:focus {
+            border-color: #0b5ed7;
+        }
+
+        .question-box {
+            border: 1px solid #e1e7ef;
+            border-radius: 12px;
+            padding: 18px;
+            margin-top: 15px;
+            display: none;
+        }
+
+        .question-number {
+            color: #0b5ed7;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        .question-text {
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-bottom: 15px;
+        }
+
+        .option {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border: 1px solid #dce3ed;
+            border-radius: 9px;
+            padding: 12px;
+            margin: 8px 0;
+            cursor: pointer;
+            transition: .2s;
+        }
+
+        .option:hover {
+            background: #f0f6ff;
+        }
+
+        .option.selected {
+            background: #e8f1ff;
+            border-color: #0b5ed7;
+        }
+
+        .option input {
+            width: auto;
+        }
+
+        .premium {
+            background: linear-gradient(135deg, #fff8df, #fff);
+            border: 2px solid #ffc107;
+        }
+
+        .premium h2 {
+            color: #9a6b00;
+        }
+
+        .feature-list {
+            list-style: none;
+            margin: 12px 0;
+        }
+
+        .feature-list li {
+            padding: 7px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .feature-list li:last-child {
+            border-bottom: 0;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 20px;
+            background: #e8f1ff;
+            color: #0b5ed7;
+            font-size: .78rem;
+            font-weight: bold;
+        }
+
+        .premium-badge {
+            background: #fff0b8;
+            color: #806000;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
+            margin-top: 15px;
+        }
+
+        .stat {
+            padding: 16px;
+            border-radius: 10px;
+            background: #f4f7fb;
+            text-align: center;
+        }
+
+        .stat strong {
+            display: block;
+            font-size: 1.5rem;
+            color: #0b5ed7;
+        }
+
+        .language-output,
+        .result {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 10px;
+            background: #f4f7fb;
+            display: none;
+        }
+
+        .notice {
+            padding: 12px 14px;
+            border-radius: 9px;
+            margin-top: 12px;
+            background: #eef5ff;
+            color: #164a88;
+        }
+
+        .success-message {
+            background: #e9f8ef;
+            color: #146c43;
+        }
+
+        .error-message {
+            background: #fff0f0;
+            color: #a52834;
+        }
+
+        .timer {
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: #dc3545;
+            margin-bottom: 12px;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 30px 15px;
+            color: #697386;
+            font-size: .9rem;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                width: 95%;
+            }
+
+            .hero {
+                padding: 23px 17px;
+            }
+
+            .section {
+                padding: 16px;
+            }
+
+            .topbar-inner {
+                align-items: flex-start;
+            }
+
+            .hero-actions .btn {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- TOP BAR -->
+    <header class="topbar">
+        <div class="topbar-inner">
+            <div class="brand">
+                💊 DENexpharm
+                <small>Worldwide Pharmacy Learning & Competition</small>
+            </div>
+
+            <button class="menu-btn" onclick="scrollToSection('features')">
+                Menu
+            </button>
+        </div>
+    </header>
+
+    <main class="container">
+
+        <!-- HERO -->
+        <section class="hero">
+            <h1>Welcome to DENexpharm 🌍</h1>
+
+            <p>
+                A growing worldwide pharmacy learning, examination practice,
+                GPA, competition and professional learning platform.
+            </p>
+
+            <div class="hero-actions">
+                <button class="btn btn-primary"
+                        onclick="scrollToSection('study')">
+                    📚 Start Studying
+                </button>
+
+                <button class="btn btn-premium"
+                        onclick="scrollToSection('premium')">
+                    🚀 Upgrade Package
+                </button>
+
+                <button class="btn btn-dark"
+                        onclick="scrollToSection('competition')">
+                    🏆 Competition
+                </button>
+            </div>
+        </section>
+
+        <!-- DASHBOARD -->
+        <section class="section">
+            <h2>📊 Student Dashboard</h2>
+
+            <p class="section-subtitle">
+                Your learning activity and progress.
+            </p>
+
+            <div class="stats">
+
+                <div class="stat">
+                    <strong id="questionsAnswered">0</strong>
+                    Questions Answered
+                </div>
+
+                <div class="stat">
+                    <strong id="correctAnswers">0</strong>
+                    Correct Answers
+                </div>
+
+                <div class="stat">
+                    <strong id="scorePercent">0%</strong>
+                    Accuracy
+                </div>
+
+                <div class="stat">
+                    <strong id="studyYearDisplay"></strong>
+                    Study Year
+                </div>
+
+            </div>
+        </section>
+
+        <!-- FEATURES -->
+        <section class="section" id="features">
+
+            <h2>🌍 DENexpharm Features</h2>
+
+            <p class="section-subtitle">
+                One platform designed to grow with pharmacy students worldwide.
+            </p>
+
+            <div class="grid">
+
+                <div class="card">
+                    <div class="icon">📚</div>
+                    <h3>Pharmacy Learning</h3>
+                    <p>
+                        Study pharmacy subjects, topics and learning materials.
+                    </p>
+
+                    <button class="btn btn-dark"
+                            onclick="scrollToSection('study')">
+                        Open
+                    </button>
+                </div>
+
+                <div class="card">
+                    <div class="icon">🏆</div>
+                    <h3>Competition</h3>
+                    <p>
+                        Practice timed pharmacy questions and competition modes.
+                    </p>
+
+                    <button class="btn btn-dark"
+                            onclick="scrollToSection('competition')">
+                        Compete
+                    </button>
+                </div>
+
+                <div class="card">
+                    <div class="icon">📅</div>
+                    <h3>Study by Year</h3>
+                    <p>
+                        Select the current year or previous three years.
+                    </p>
+
+                    <button class="btn btn-dark"
+                            onclick="scrollToSection('study')">
+                        Choose Year
+                    </button>
+                </div>
+
+                <div class="card">
+                    <div class="icon">📊</div>
+                    <h3>GPA Calculator</h3>
+                    <p>
+                        Calculate GPA and track academic performance.
+                    </p>
+
+                    <button class="btn btn-dark"
+                            onclick="scrollToSection('gpa')">
+                        Calculate
+                    </button>
+                </div>
+
+                <div class="card">
+                    <div class="icon">📖</div>
+                    <h3>Pharmacopoeia Hub</h3>
+                    <p>
+                        Learn about major pharmacopoeial standards and concepts.
+                    </p>
+
+                    <button class="btn btn-dark"
+                            onclick="scrollToSection('pharma')">
+                        Open Hub
+                    </button>
+                </div>
+
+                <div class="card">
+                    <div class="icon">🗣️</div>
+                    <h3>Language Assistant</h3>
+                    <p>
+                        Learn pharmacy vocabulary and patient-counselling phrases.
+                    </p>
+
+                    <button class="btn btn-dark"
+                            onclick="scrollToSection('language')">
+                        Open
+                    </button>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- STUDY -->
+        <section class="section" id="study">
+
+            <h2>📅 Study by Year</h2>
+
+            <p class="section-subtitle">
+                Choose the year, country, curriculum, level, subject and
+                difficulty you want to study.
+            </p>
+
+            <div class="controls">
+
+                <div>
+                    <label for="country">Country</label>
+
+                    <select id="country">
+                        <option value="global">🌍 Worldwide / General</option>
+                        <option value="nigeria">🇳🇬 Nigeria</option>
+                        <option value="ghana">🇬🇭 Ghana</option>
+                        <option value="south-africa">🇿🇦 South Africa</option>
+                        <option value="uk">🇬🇧 United Kingdom</option>
+                        <option value="usa">🇺🇸 United States</option>
+                        <option value="canada">🇨🇦 Canada</option>
+                        <option value="australia">🇦🇺 Australia</option>
+                        <option value="india">🇮🇳 India</option>
+                        <option value="other">🌐 Other</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label for="curriculum">Curriculum</label>
+
+                    <select id="curriculum">
+                        <option value="general">General Pharmacy</option>
+                        <option value="university">University Pharmacy</option>
+                        <option value="clinical">Clinical Pharmacy</option>
+                        <option value="licensure">
+                            Licensure Preparation
+                        </option>
+                    </select>
+                </div>
+
+                <div>
+                    <label for="level">Level</label>
+
+                    <select id="level">
+                        <option value="all">All Levels</option>
+                        <option value="100">100 / First Year</option>
+                        <option value="200">200 / Second Year</option>
+                        <option value="300">300 / Third Year</option>
+                        <option value="400">400 / Fourth Year</option>
+                        <option value="500">500 / Fifth Year</option>
+                        <option value="postgraduate">Postgraduate</option>
+                        <option value="professional">
+                            Professional / Licensure
+                        </option>
+                    </select>
+                </div>
+
+                <div>
+                    <label for="year">Study Year</label>
+
+                    <select id="year"></select>
+                </div>
+
+                <div>
+                    <label for="subject">Subject</label>
+
+                    <select id="subject">
+                        <option value="all">All Subjects</option>
+                        <option value="Pharmaceutics">Pharmaceutics</option>
+                        <option value="Pharmacology">Pharmacology</option>
+                        <option value="Pharmacognosy">Pharmacognosy</option>
+                        <option value="Pharmaceutical Microbiology">
+                            Pharmaceutical Microbiology
+                        </option>
+                        <option value="Medicinal Chemistry">
+                            Medicinal Chemistry
+                        </option>
+                        <option value="Pharmaceutical Chemistry">
+                            Pharmaceutical Chemistry
+                        </option>
+                        <option value="Clinical Pharmacy">
+                            Clinical Pharmacy
+                        </option>
+                        <option value="Pharmacy Practice">
+                            Pharmacy Practice
+                        </option>
+                        <option value="Physiology">Physiology</option>
+                        <option value="Anatomy">Anatomy</option>
+                        <option value="Biochemistry">Biochemistry</option>
+                        <option value="Pharmaceutical Physical Chemistry">
+                            Pharmaceutical Physical Chemistry
+                        </option>
+                        <option value="Pharmaceutical Entrepreneurship">
+                            Pharmaceutical Entrepreneurship
+                        </option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label for="difficulty">Difficulty</label>
+
+                    <select id="difficulty">
+                        <option value="all">All Difficulties</option>
+                        <option value="easy">Easy</option>
+                        <option value="medium">Medium</option>
+                        <option value="hard">Hard</option>
+                        <option value="expert">Expert</option>
+                    </select>
+                </div>
+
+            </div>
+
+            <div style="margin-top:16px;">
+                <button class="btn btn-success"
+                        onclick="loadQuestions()">
+                    🔎 Find Questions
+                </button>
+            </div>
+
+            <div id="questionStatus" class="notice">
+                Select your preferences and click "Find Questions".
+            </div>
+
+            <div id="questionArea" class="question-box">
+
+                <div id="timer" class="timer hidden"></div>
+
+                <div id="questionNumber"
+                     class="question-number"></div>
+
+                <div id="questionText"
+                     class="question-text"></div>
+
+                <div id="options"></div>
+
+                <button class="btn btn-primary"
+                        onclick="submitAnswer()">
+                    Submit Answer
+                </button>
+
+                <div id="answerResult"
+                     class="result"></div>
+
+                <button id="nextQuestionBtn"
+                        class="btn btn-dark hidden"
+                        style="margin-top:10px;"
+                        onclick="nextQuestion()">
+                    Next Question →
+                </button>
+
+            </div>
+
+        </section>
+
+        <!-- COMPETITION -->
+        <section class="section" id="competition">
+
+            <h2>🏆 Pharmacy Competition</h2>
+
+            <p class="section-subtitle">
+                Test your pharmacy knowledge through quick battles,
+                practice sessions and premium examination modes.
+            </p>
+
+            <div class="grid">
+
+                <div class="card">
+
+                    <span class="badge">FREE</span>
+
+                    <h3>Quick Battle</h3>
+
+                    <p>
+                        Complete a 10-question pharmacy challenge.
+                    </p>
+
+                    <button class="btn btn-success"
+                            onclick="startCompetition(10)">
+                        Start 10 Questions
+                    </button>
+
+                </div>
+
+                <div class="card premium">
+
+                    <span class="badge premium-badge">
+                        PREMIUM
+                    </span>
+
+                    <h3>Full Practice</h3>
+
+                    <p>
+                        Access larger question sets from the question bank.
+                    </p>
+
+                    <button class="btn btn-premium"
+                            onclick="premiumMessage()">
+                        Unlock
+                    </button>
+
+                </div>
+
+                <div class="card premium">
+
+                    <span class="badge premium-badge">
+                        PREMIUM
+                    </span>
+
+                    <h3>Mock Examination</h3>
+
+                    <p>
+                        Practice with timed examination-style sessions.
+                    </p>
+
+                    <button class="btn btn-premium"
+                            onclick="premiumMessage()">
+                        Unlock
+                    </button>
+
+                </div>
+
+            </div>
+
+        </section>
+
+        <!-- PREMIUM -->
+        <section class="section premium" id="premium">
+
+            <h2>🚀 Upgrade to DENexpharm Premium</h2>
+
+            <p class="section-subtitle">
+                Unlock the expanded learning and question-bank experience.
+            </p>
+
+            <div class="grid">
+
+                <div class="card">
+                    <h3>📚 Thousands of Questions</h3>
+
+                    <p>
+                        Access a scalable question-bank system designed
+                        to support thousands of original pharmacy questions.
+                    </p>
+                </div>
+
+                <div class="card">
+                    <h3>📅 Historical Practice</h3>
+
+                    <p>
+                        Study by year and filter questions by subject,
+                        level, country and difficulty.
+                    </p>
+                </div>
+
+                <div class="card">
+                    <h3>⏱️ Mock Exams</h3>
+
+                    <p>
+                        Timed examinations and larger practice sessions.
+                    </p>
+                </div>
+
+                <div class="card">
+                    <h3>📊 Advanced Analytics</h3>
+
+                    <p>
+                        Track accuracy, performance and areas requiring
+                        more study.
+                    </p>
+                </div>
+
+                <div class="card">
+                    <h3>📖 Pharmacopoeia Hub</h3>
+
+                    <p>
+                        Educational information about BP, USP-NF,
+                        Ph. Eur. and other recognized standards.
+                    </p>
+                </div>
+
+                <div class="card">
+                    <h3>🗣️ Language Assistant</h3>
+
+                    <p>
+                        Pharmacy vocabulary, pronunciation support and
+                        patient-counselling phrases in multiple languages.
+                    </p>
+                </div>
+
+            </div>
+
+            <ul class="feature-list">
+
+                <li>✅ Larger question-bank access</li>
+                <li>✅ Extended practice sessions</li>
+                <li>✅ Advanced mock examinations</li>
+                <li>✅ Performance analytics</li>
+                <li>✅ Expanded learning resources</li>
+                <li>✅ Multi-language pharmacy support</li>
+                <li>✅ Continually expandable yearly content</li>
+
+            </ul>
+
+            <button class="btn btn-premium"
+                    onclick="upgradePremium()">
+                🚀 Upgrade Package
+            </button>
+
+            <div id="premiumMessage"
+                 class="notice hidden"></div>
+
+        </section>
+
+        <!-- GPA -->
+        <section class="section" id="gpa">
+
+            <h2>📊 GPA Calculator</h2>
+
+            <p class="section-subtitle">
+                Add your courses, units and grade points.
+            </p>
+
+            <div id="gpaCourses">
+
+                <div class="controls gpa-row"
+                     style="margin-bottom:10px;">
+
+                    <div>
+                        <label>Course</label>
+                        <input type="text"
+                               class="course-name"
+                               placeholder="e.g. Pharmaceutics">
+                    </div>
+
+                    <div>
+                        <label>Units</label>
+                        <input type="number"
+                               class="course-unit"
+                               min="1"
+                               placeholder="3">
+                    </div>
+
+                    <div>
+                        <label>Grade Point</label>
+                        <input type="number"
+                               class="course-point"
+                               min="0"
+                               max="5"
+                               step="0.1"
+                               placeholder="4">
+                    </div>
+
+                </div>
+
+                <div class="controls gpa-row"
+                     style="margin-bottom:10px;">
+
+                    <div>
+                        <label>Course</label>
+                        <input type="text"
+                               class="course-name"
+                               placeholder="e.g. Pharmacology">
+                    </div>
+
+                    <div>
+                        <label>Units</label>
+                        <input type="number"
+                               class="course-unit"
+                               min="1"
+                               placeholder="3">
+                    </div>
+
+                    <div>
+                        <label>Grade Point</label>
+                        <input type="number"
+                               class="course-point"
+                               min="0"
+                               max="5"
+                               step="0.1"
+                               placeholder="3.5">
+                    </div>
+
+                </div>
+
+            </div>
+
+            <button class="btn btn-dark"
+                    style="margin-top:5px;"
+                    onclick="addGPACourse()">
+                ➕ Add Course
+            </button>
+
+            <button class="btn btn-success"
+                    style="margin-top:5px;"
+                    onclick="calculateGPA()">
+                📊 Calculate GPA
+            </button>
+
+            <div id="gpaResult"
+                 class="result"></div>
+
+        </section>
+
+        <!-- PHARMACOPOEIA -->
+        <section class="section" id="pharma">
+
+            <h2>📖 Pharmacopoeia Hub</h2>
+
+            <p class="section-subtitle">
+                Educational reference area for major pharmacopoeial standards.
+            </p>
+
+            <div class="grid">
+
+                <div class="card">
+                    <h3>🇬🇧 British Pharmacopoeia</h3>
+
+                    <p>
+                        Learn about the role, structure, standards and
+                        terminology associated with the BP.
+                    </p>
+                </div>
+
+                <div class="card">
+                    <h3>🇺🇸 USP–NF</h3>
+
+                    <p>
+                        Explore educational concepts relating to United
+                        States pharmacopeial standards.
+                    </p>
+                </div>
+
+                <div class="card">
+                    <h3>🇪🇺 Ph. Eur.</h3>
+
+                    <p>
+                        Learn about European pharmacopoeial standards and
+                        their importance in pharmaceutical quality.
+                    </p>
+                </div>
+
+                <div class="card">
+                    <h3>🌍 Global Standards</h3>
+
+                    <p>
+                        Compare general concepts across recognized
+                        pharmaceutical quality standards.
+                    </p>
+                </div>
+
+            </div>
+
+            <div class="notice">
+
+                DENexpharm should use original educational explanations
+                and properly licensed or public-domain material rather
+                than reproducing copyrighted pharmacopoeial monographs.
+
+            </div>
+
+        </section>
+
+        <!-- LANGUAGE -->
+        <section class="section" id="language">
+
+            <h2>🗣️ Pharmacy Language Assistant</h2>
+
+            <p class="section-subtitle">
+                Learn useful pharmacy vocabulary and patient-counselling phrases.
+            </p>
+
+            <div class="controls">
+
+                <div>
+                    <label for="language">
+                        Language
+                    </label>
+
+                    <select id="language">
+
+                        <option value="english">
+                            English
+                        </option>
+
+                        <option value="french">
+                            French
+                        </option>
+
+                        <option value="spanish">
+                            Spanish
+                        </option>
+
+                        <option value="arabic">
+                            Arabic
+                        </option>
+
+                        <option value="portuguese">
+                            Portuguese
+                        </option>
+
+                        <option value="german">
+                            German
+                        </option>
+
+                        <option value="yoruba">
+                            Yoruba
+                        </option>
+
+                        <option value="igbo">
+                            Igbo
+                        </option>
+
+                        <option value="hausa">
+                            Hausa
+                        </option>
+
+                    </select>
+                </div>
+
+                <div>
+
+                    <label for="phrase">
+                        Pharmacy phrase
+                    </label>
+
+                    <input type="text"
+                           id="phrase"
+                           placeholder="e.g. Take this medicine twice daily">
+
+                </div>
+
+            </div>
+
+            <button class="btn btn-success"
+                    style="margin-top:15px;"
+                    onclick="translatePhrase()">
+                🗣️ Translate / Practice
+            </button>
+
+            <div id="languageOutput"
+                 class="language-output"></div>
+
+        </section>
+
+        <!-- FUTURE UPDATES -->
+        <section class="section">
+
+            <h2>🔄 Built for Continuous Updates</h2>
+
+            <p>
+                DENexpharm is structured so the platform can continue
+                expanding with new academic years, subjects, questions,
+                countries, curricula and features.
+            </p>
+
+            <div class="notice">
+
+                Current year:
+                <strong id="currentYearText"></strong>.
+
+                The year selector automatically exposes the current
+                year and previous three years.
+
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="footer">
+
+        © <span id="footerYear"></span> DENexpharm.
+
+        Pharmacy Learning • GPA • Competition • Global Study
+
+    </footer>
+
+
+    <script>
+
+        /* =========================================================
+           DENexpharm Frontend Application
+           ========================================================= */
+
+        const CURRENT_YEAR = new Date().getFullYear();
+
+        let selectedQuestions = [];
+        let currentQuestionIndex = 0;
+        let selectedOption = null;
+
+        let competitionMode = false;
+        let competitionLimit = 10;
+
+        let questionsAnswered =
+            Number(localStorage.getItem("denex_questionsAnswered") || 0);
+
+        let correctAnswers =
+            Number(localStorage.getItem("denex_correctAnswers") || 0);
+
+
+        /* =========================================================
+           YEAR SYSTEM
+           ========================================================= */
+
+        function populateYears() {
+
+            const yearSelect =
+                document.getElementById("year");
+
+            yearSelect.innerHTML = "";
+
+            for (
+                let year = CURRENT_YEAR;
+                year >= CURRENT_YEAR - 3;
+                year--
+            ) {
+
+                const option =
+                    document.createElement("option");
+
+                option.value = year;
+
+                option.textContent =
+                    year === CURRENT_YEAR
+                        ? `${year} — Current Year`
+                        : `${year} — Previous Year`;
+
+                yearSelect.appendChild(option);
+            }
+
+            document.getElementById(
+                "studyYearDisplay"
+            ).textContent = CURRENT_YEAR;
+
+            document.getElementById(
+                "currentYearText"
+            ).textContent = CURRENT_YEAR;
+
+            document.getElementById(
+                "footerYear"
+            ).textContent = CURRENT_YEAR;
+        }
+
+
+        /* =========================================================
+           DASHBOARD
+           ========================================================= */
+
+        function updateDashboard() {
+
+            document.getElementById(
+                "questionsAnswered"
+            ).textContent = questionsAnswered;
+
+            document.getElementById(
+                "correctAnswers"
+            ).textContent = correctAnswers;
+
+            const accuracy =
+                questionsAnswered === 0
+                    ? 0
+                    : Math.round(
+                        (correctAnswers / questionsAnswered) * 100
+                    );
+
+            document.getElementById(
+                "scorePercent"
+            ).textContent = `${accuracy}%`;
+
+            localStorage.setItem(
+                "denex_questionsAnswered",
+                questionsAnswered
+            );
+
+            localStorage.setItem(
+                "denex_correctAnswers",
+                correctAnswers
+            );
+        }
+
+
+        /* =========================================================
+           NAVIGATION
+           ========================================================= */
+
+        function scrollToSection(id) {
+
+            const element =
+                document.getElementById(id);
+
+            if (element) {
+
+                element.scrollIntoView({
+                    behavior: "smooth",
+                    block: "start"
+                });
+            }
+        }
+
+
+        /* =========================================================
+           LOAD QUESTIONS
+           ========================================================= */
+
+        async function loadQuestions() {
+
+            competitionMode = false;
+
+            const country =
+                document.getElementById("country").value;
+
+            const curriculum =
+                document.getElementById("curriculum").value;
+
+            const level =
+                document.getElementById("level").value;
+
+            const year =
+                document.getElementById("year").value;
+
+            const subject =
+                document.getElementById("subject").value;
+
+            const difficulty =
+                document.getElementById("difficulty").value;
+
+            const status =
+                document.getElementById("questionStatus");
+
+            status.textContent =
+                "Searching the DENexpharm question bank...";
+
+            try {
+
+                const params =
+                    new URLSearchParams({
+                        country,
+                        curriculum,
+                        level,
+                        year,
+                        subject,
+                        difficulty
+                    });
+
+                const response =
+                    await fetch(
+                        `/api/questions?${params.toString()}`
+                    );
+
+                if (response.ok) {
+
+                    const data =
+                        await response.json();
+
+                    if (
+                        Array.isArray(data.questions) &&
+                        data.questions.length > 0
+                    ) {
+
+                        selectedQuestions =
+                            data.questions;
+
+                        currentQuestionIndex = 0;
+
+                        status.textContent =
+                            `${selectedQuestions.length} question(s) found.`;
+
+                        showQuestion();
+
+                        return;
+                    }
+                }
+
+            } catch (error) {
+
+                console.log(
+                    "Question API error:",
+                    error
+                );
+            }
+
+
+            /* Demo fallback */
+
+            selectedQuestions = [
+
+                {
+                    question:
+                        "Which dosage form is commonly administered orally?",
+
+                    options: [
+                        "Tablet",
+                        "Ophthalmic implant only",
+                        "Surgical suture",
+                        "Transdermal patch only"
+                    ],
+
+                    answer: 0,
+
+                    explanation:
+                        "Tablets
