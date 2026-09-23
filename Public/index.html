@@ -1,0 +1,1186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>DENexpharm | Pharmacy Learning Platform</title>
+
+  <meta
+    name="description"
+    content="DENexpharm is a pharmacy learning, quiz, GPA, competition and student-support platform."
+  >
+
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      background: #f4f7fb;
+      color: #172033;
+      line-height: 1.5;
+    }
+
+    button,
+    input,
+    select {
+      font: inherit;
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    .topbar {
+      background: #0b5ed7;
+      color: white;
+      padding: 16px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 15px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .brand {
+      font-size: 22px;
+      font-weight: bold;
+    }
+
+    .brand small {
+      display: block;
+      font-size: 11px;
+      opacity: 0.85;
+      font-weight: normal;
+    }
+
+    .nav {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .nav button {
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.5);
+      color: white;
+      padding: 8px 12px;
+      border-radius: 6px;
+    }
+
+    .nav button:hover {
+      background: rgba(255,255,255,0.15);
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: auto;
+      padding: 25px 18px;
+    }
+
+    .hero {
+      background: white;
+      border-radius: 14px;
+      padding: 35px 25px;
+      margin-bottom: 25px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.06);
+    }
+
+    .hero h1 {
+      font-size: 34px;
+      margin-bottom: 10px;
+    }
+
+    .hero p {
+      color: #5d6878;
+      max-width: 750px;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    .btn {
+      border: none;
+      border-radius: 7px;
+      padding: 11px 16px;
+      background: #0b5ed7;
+      color: white;
+    }
+
+    .btn.secondary {
+      background: #e9eef7;
+      color: #172033;
+    }
+
+    .btn.success {
+      background: #198754;
+    }
+
+    .btn.warning {
+      background: #f0ad4e;
+      color: #111;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      margin-bottom: 25px;
+    }
+
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 3px 12px rgba(0,0,0,0.05);
+    }
+
+    .card h3 {
+      margin-bottom: 8px;
+    }
+
+    .card p {
+      color: #657083;
+      font-size: 14px;
+    }
+
+    .stat {
+      font-size: 28px;
+      font-weight: bold;
+      margin-top: 8px;
+    }
+
+    .section {
+      display: none;
+      background: white;
+      border-radius: 12px;
+      padding: 22px;
+      margin-bottom: 25px;
+      box-shadow: 0 3px 12px rgba(0,0,0,0.05);
+    }
+
+    .section.active {
+      display: block;
+    }
+
+    .section h2 {
+      margin-bottom: 15px;
+    }
+
+    .form {
+      display: grid;
+      gap: 12px;
+      max-width: 500px;
+    }
+
+    .form input,
+    .form select {
+      width: 100%;
+      padding: 11px;
+      border: 1px solid #ccd4df;
+      border-radius: 7px;
+      outline: none;
+    }
+
+    .form input:focus,
+    .form select:focus {
+      border-color: #0b5ed7;
+    }
+
+    .question {
+      border: 1px solid #e0e5ec;
+      border-radius: 10px;
+      padding: 18px;
+      margin-bottom: 15px;
+    }
+
+    .option {
+      display: block;
+      width: 100%;
+      text-align: left;
+      background: #f7f9fc;
+      border: 1px solid #dce2ea;
+      padding: 12px;
+      margin-top: 8px;
+      border-radius: 7px;
+    }
+
+    .option:hover {
+      background: #e9f1ff;
+    }
+
+    .result {
+      padding: 15px;
+      border-radius: 8px;
+      background: #eef6ff;
+      margin-top: 15px;
+    }
+
+    .loading {
+      color: #657083;
+      padding: 15px 0;
+    }
+
+    .error {
+      color: #b02a37;
+      background: #fcebed;
+      padding: 12px;
+      border-radius: 7px;
+      margin-top: 10px;
+    }
+
+    .success-message {
+      color: #146c43;
+      background: #e9f7ef;
+      padding: 12px;
+      border-radius: 7px;
+      margin-top: 10px;
+    }
+
+    footer {
+      text-align: center;
+      color: #687386;
+      padding: 30px 15px;
+      font-size: 13px;
+    }
+
+    @media (max-width: 700px) {
+      .topbar {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .hero h1 {
+        font-size: 27px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    DENexpharm
+    <small>Pharmacy Learning • GPA • Competition • Student Platform</small>
+  </div>
+
+  <nav class="nav">
+    <button onclick="showSection('home')">Home</button>
+    <button onclick="showSection('subjects')">Subjects</button>
+    <button onclick="showSection('quiz')">Quiz</button>
+    <button onclick="showSection('gpa')">GPA</button>
+    <button onclick="showSection('library')">Library</button>
+    <button onclick="showSection('profile')">Profile</button>
+  </nav>
+</header>
+
+<main class="container">
+
+  <!-- HOME -->
+  <section id="home" class="section active">
+    <div class="hero">
+      <h1>Welcome to DENexpharm 💊</h1>
+
+      <p>
+        Your pharmacy learning and student-support platform for studying,
+        practising questions, calculating GPA, competing with other students,
+        exploring pharmacy resources and improving your knowledge.
+      </p>
+
+      <div class="actions">
+        <button class="btn" onclick="showSection('quiz')">
+          Start Quiz
+        </button>
+
+        <button class="btn success" onclick="showSection('gpa')">
+          Calculate GPA
+        </button>
+
+        <button class="btn secondary" onclick="showSection('subjects')">
+          Explore Subjects
+        </button>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <h3>Questions</h3>
+        <p>Pharmacy questions across multiple subjects.</p>
+        <div class="stat" id="questionCount">—</div>
+      </div>
+
+      <div class="card">
+        <h3>Subjects</h3>
+        <p>Explore pharmacy and health-science subjects.</p>
+        <div class="stat" id="subjectCount">—</div>
+      </div>
+
+      <div class="card">
+        <h3>Learning</h3>
+        <p>Detailed explanations and learning points.</p>
+        <div class="stat">24/7</div>
+      </div>
+
+      <div class="card">
+        <h3>Platform</h3>
+        <p>DENexpharm version</p>
+        <div class="stat" id="versionNumber">3.0.0</div>
+      </div>
+    </div>
+
+    <div id="homeMessage"></div>
+  </section>
+
+
+  <!-- SUBJECTS -->
+  <section id="subjects" class="section">
+    <h2>📚 Pharmacy Subjects</h2>
+
+    <div id="subjectsList" class="grid">
+      <div class="loading">Loading subjects...</div>
+    </div>
+  </section>
+
+
+  <!-- QUIZ -->
+  <section id="quiz" class="section">
+    <h2>🧠 Quiz Centre</h2>
+
+    <div class="form">
+      <select id="quizSubject">
+        <option value="">All Subjects</option>
+      </select>
+
+      <input
+        id="quizAmount"
+        type="number"
+        min="1"
+        max="50"
+        value="10"
+        placeholder="Number of questions"
+      />
+
+      <button class="btn" onclick="startQuiz()">
+        Start Quiz
+      </button>
+    </div>
+
+    <div id="quizArea"></div>
+  </section>
+
+
+  <!-- GPA -->
+  <section id="gpa" class="section">
+    <h2>🎓 GPA Calculator</h2>
+
+    <p>
+      Enter your courses, credit units and grades to calculate your GPA.
+    </p>
+
+    <div id="gpaRows"></div>
+
+    <div class="actions">
+      <button class="btn secondary" onclick="addGPACourse()">
+        + Add Course
+      </button>
+
+      <button class="btn success" onclick="calculateGPA()">
+        Calculate GPA
+      </button>
+    </div>
+
+    <div id="gpaResult"></div>
+  </section>
+
+
+  <!-- LIBRARY -->
+  <section id="library" class="section">
+    <h2>📖 Mini Library</h2>
+
+    <div id="libraryList">
+      <div class="loading">Loading library...</div>
+    </div>
+  </section>
+
+
+  <!-- PROFILE -->
+  <section id="profile" class="section">
+    <h2>👤 Student Profile</h2>
+
+    <div id="profileContent">
+      <p>You are currently browsing as a guest.</p>
+
+      <div class="actions">
+        <button class="btn" onclick="showLogin()">
+          Login
+        </button>
+
+        <button class="btn secondary" onclick="showRegister()">
+          Register
+        </button>
+      </div>
+    </div>
+
+    <div id="authArea"></div>
+  </section>
+
+</main>
+
+
+<footer>
+  <strong>DENexpharm</strong><br>
+  Pharmacy Learning • GPA • Competition • Student Support<br>
+  © 2026 DENexpharm
+</footer>
+
+
+<script>
+  const API = "/api";
+
+  let currentQuiz = null;
+  let currentQuizAnswers = {};
+  let gpaCourseCount = 0;
+
+
+  /* ============================================================
+     GENERAL HELPERS
+  ============================================================ */
+
+  async function apiRequest(url, options = {}) {
+    try {
+      const response = await fetch(API + url, {
+        headers: {
+          "Content-Type": "application/json",
+          ...(options.headers || {})
+        },
+        ...options
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || data.error || "Request failed");
+      }
+
+      return data;
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  }
+
+
+  function showSection(id) {
+    document.querySelectorAll(".section").forEach(section => {
+      section.classList.remove("active");
+    });
+
+    const section = document.getElementById(id);
+
+    if (section) {
+      section.classList.add("active");
+      window.scrollTo({
+        top: 0,
+        behavior: "smooth"
+      });
+    }
+
+    if (id === "subjects") loadSubjects();
+    if (id === "library") loadLibrary();
+    if (id === "profile") loadProfile();
+  }
+
+
+  /* ============================================================
+     PLATFORM INFORMATION
+  ============================================================ */
+
+  async function loadPlatformInfo() {
+    try {
+      const data = await apiRequest("/statistics");
+
+      if (data.data) {
+        if (data.data.questions !== undefined) {
+          document.getElementById("questionCount").textContent =
+            data.data.questions;
+        }
+
+        if (data.data.users !== undefined) {
+          // Available for future dashboard use.
+        }
+      }
+    } catch (error) {
+      document.getElementById("questionCount").textContent = "—";
+    }
+
+    try {
+      const data = await apiRequest("/subjects");
+
+      const subjects = data.data || data.subjects || [];
+
+      document.getElementById("subjectCount").textContent =
+        Array.isArray(subjects) ? subjects.length : "—";
+    } catch (error) {
+      document.getElementById("subjectCount").textContent = "—";
+    }
+
+    try {
+      const data = await apiRequest("/version");
+
+      if (data.data && data.data.version) {
+        document.getElementById("versionNumber").textContent =
+          data.data.version;
+      }
+    } catch (error) {
+      // Keep default version.
+    }
+  }
+
+
+  /* ============================================================
+     SUBJECTS
+  ============================================================ */
+
+  async function loadSubjects() {
+    const container = document.getElementById("subjectsList");
+
+    container.innerHTML =
+      '<div class="loading">Loading subjects...</div>';
+
+    try {
+      const response = await apiRequest("/subjects");
+
+      const subjects = response.data || response.subjects || [];
+
+      if (!subjects.length) {
+        container.innerHTML =
+          "<p>No subjects available yet.</p>";
+        return;
+      }
+
+      container.innerHTML = subjects.map(subject => {
+        const name =
+          typeof subject === "string"
+            ? subject
+            : subject.name || subject.title || "Subject";
+
+        return `
+          <div class="card">
+            <h3>${escapeHTML(name)}</h3>
+            <p>Practice questions, quizzes and learning resources.</p>
+          </div>
+        `;
+      }).join("");
+
+      const select = document.getElementById("quizSubject");
+
+      select.innerHTML =
+        '<option value="">All Subjects</option>' +
+        subjects.map(subject => {
+          const name =
+            typeof subject === "string"
+              ? subject
+              : subject.name || subject.title || "";
+
+          return `
+            <option value="${escapeHTML(name)}">
+              ${escapeHTML(name)}
+            </option>
+          `;
+        }).join("");
+
+    } catch (error) {
+      container.innerHTML =
+        `<div class="error">${escapeHTML(error.message)}</div>`;
+    }
+  }
+
+
+  /* ============================================================
+     QUIZ
+  ============================================================ */
+
+  async function startQuiz() {
+    const subject =
+      document.getElementById("quizSubject").value;
+
+    const amount =
+      Number(document.getElementById("quizAmount").value) || 10;
+
+    const quizArea =
+      document.getElementById("quizArea");
+
+    quizArea.innerHTML =
+      '<div class="loading">Creating your quiz...</div>';
+
+    try {
+      const body = {
+        amount: Math.min(Math.max(amount, 1), 50)
+      };
+
+      if (subject) {
+        body.subject = subject;
+      }
+
+      const response =
+        await apiRequest("/quiz/start", {
+          method: "POST",
+          body: JSON.stringify(body)
+        });
+
+      currentQuiz =
+        response.data || response.quiz;
+
+      currentQuizAnswers = {};
+
+      renderQuiz();
+
+    } catch (error) {
+      quizArea.innerHTML =
+        `<div class="error">${escapeHTML(error.message)}</div>`;
+    }
+  }
+
+
+  function renderQuiz() {
+    const quizArea =
+      document.getElementById("quizArea");
+
+    const questions =
+      currentQuiz.questions ||
+      [];
+
+    if (!questions.length) {
+      quizArea.innerHTML =
+        "<p>No questions were returned.</p>";
+      return;
+    }
+
+    quizArea.innerHTML = `
+      <div class="result">
+        <strong>Quiz ready!</strong>
+        <p>${questions.length} questions</p>
+      </div>
+
+      ${questions.map((question, index) => `
+        <div class="question">
+          <h3>
+            ${index + 1}. ${escapeHTML(question.question)}
+          </h3>
+
+          ${(question.options || []).map((option, optionIndex) => `
+            <button
+              class="option"
+              onclick="selectAnswer(${index}, ${optionIndex})"
+              id="option-${index}-${optionIndex}"
+            >
+              ${escapeHTML(option)}
+            </button>
+          `).join("")}
+        </div>
+      `).join("")}
+
+      <button class="btn success" onclick="submitQuiz()">
+        Submit Quiz
+      </button>
+
+      <div id="quizResult"></div>
+    `;
+  }
+
+
+  function selectAnswer(questionIndex, optionIndex) {
+    currentQuizAnswers[questionIndex] =
+      optionIndex;
+
+    document
+      .querySelectorAll(`[id^="option-${questionIndex}-"]`)
+      .forEach(button => {
+        button.style.fontWeight = "normal";
+      });
+
+    const selected =
+      document.getElementById(
+        `option-${questionIndex}-${optionIndex}`
+      );
+
+    if (selected) {
+      selected.style.fontWeight = "bold";
+    }
+  }
+
+
+  async function submitQuiz() {
+    if (!currentQuiz) return;
+
+    const quizId =
+      currentQuiz.id ||
+      currentQuiz.quizId;
+
+    const answers =
+      Object.entries(currentQuizAnswers)
+        .map(([questionIndex, answer]) => ({
+          questionIndex: Number(questionIndex),
+          answer
+        }));
+
+    const resultArea =
+      document.getElementById("quizResult");
+
+    resultArea.innerHTML =
+      '<div class="loading">Submitting...</div>';
+
+    try {
+      const response =
+        await apiRequest(
+          `/quiz/${encodeURIComponent(quizId)}/submit`,
+          {
+            method: "POST",
+            body: JSON.stringify({
+              answers
+            })
+          }
+        );
+
+      const result =
+        response.data || response.result || {};
+
+      resultArea.innerHTML = `
+        <div class="success-message">
+          <h3>Quiz Submitted 🎉</h3>
+          <p>
+            Score:
+            <strong>
+              ${result.score ?? result.percentage ?? "—"}
+            </strong>
+          </p>
+          <p>
+            Correct:
+            ${result.correct ?? "—"}
+          </p>
+        </div>
+      `;
+
+    } catch (error) {
+      resultArea.innerHTML =
+        `<div class="error">${escapeHTML(error.message)}</div>`;
+    }
+  }
+
+
+  /* ============================================================
+     GPA
+  ============================================================ */
+
+  function addGPACourse() {
+    const container =
+      document.getElementById("gpaRows");
+
+    const index =
+      gpaCourseCount++;
+
+    const row =
+      document.createElement("div");
+
+    row.className = "card";
+    row.style.marginBottom = "10px";
+
+    row.innerHTML = `
+      <div class="form">
+
+        <input
+          type="text"
+          placeholder="Course name"
+          class="course-name"
+        >
+
+        <input
+          type="number"
+          min="0"
+          step="0.5"
+          placeholder="Credit units"
+          class="course-unit"
+        >
+
+        <select class="course-grade">
+          <option value="">Select grade</option>
+          <option value="A">A</option>
+          <option value="B">B</option>
+          <option value="C">C</option>
+          <option value="D">D</option>
+          <option value="E">E</option>
+          <option value="F">F</option>
+        </select>
+
+      </div>
+    `;
+
+    container.appendChild(row);
+  }
+
+
+  async function calculateGPA() {
+    const rows =
+      document.querySelectorAll("#gpaRows .card");
+
+    const courses = [];
+
+    rows.forEach(row => {
+      const unit =
+        Number(
+          row.querySelector(".course-unit").value
+        );
+
+      const grade =
+        row.querySelector(".course-grade").value;
+
+      if (unit && grade) {
+        courses.push({
+          course:
+            row.querySelector(".course-name").value,
+          creditUnits: unit,
+          grade
+        });
+      }
+    });
+
+    if (!courses.length) {
+      document.getElementById("gpaResult").innerHTML =
+        '<div class="error">Enter at least one course.</div>';
+      return;
+    }
+
+    try {
+      const response =
+        await apiRequest("/gpa/calculate", {
+          method: "POST",
+          body: JSON.stringify({
+            courses
+          })
+        });
+
+      const result =
+        response.data || response.result || {};
+
+      document.getElementById("gpaResult").innerHTML = `
+        <div class="success-message">
+          <h3>GPA Result</h3>
+          <p>
+            GPA:
+            <strong>${result.gpa ?? "—"}</strong>
+          </p>
+          <p>
+            Total Credit Units:
+            ${result.totalCreditUnits ?? "—"}
+          </p>
+        </div>
+      `;
+
+    } catch (error) {
+      document.getElementById("gpaResult").innerHTML =
+        `<div class="error">${escapeHTML(error.message)}</div>`;
+    }
+  }
+
+
+  /* ============================================================
+     LIBRARY
+  ============================================================ */
+
+  async function loadLibrary() {
+    const container =
+      document.getElementById("libraryList");
+
+    container.innerHTML =
+      '<div class="loading">Loading library...</div>';
+
+    try {
+      const response =
+        await apiRequest("/library");
+
+      const items =
+        response.data || response.library || [];
+
+      if (!items.length) {
+        container.innerHTML =
+          "<p>No library resources available yet.</p>";
+        return;
+      }
+
+      container.innerHTML =
+        items.map(item => `
+          <div class="card" style="margin-bottom:12px;">
+            <h3>
+              ${escapeHTML(item.title || "Library Resource")}
+            </h3>
+
+            <p>
+              ${escapeHTML(
+                item.description ||
+                "Pharmacy learning resource."
+              )}
+            </p>
+          </div>
+        `).join("");
+
+    } catch (error) {
+      container.innerHTML =
+        `<div class="error">${escapeHTML(error.message)}</div>`;
+    }
+  }
+
+
+  /* ============================================================
+     AUTH / PROFILE
+  ============================================================ */
+
+  async function loadProfile() {
+    const container =
+      document.getElementById("profileContent");
+
+    try {
+      const response =
+        await apiRequest("/auth/me");
+
+      const user =
+        response.data || response.user;
+
+      if (!user) {
+        throw new Error("Not logged in");
+      }
+
+      container.innerHTML = `
+        <div class="card">
+          <h3>
+            Welcome,
+            ${escapeHTML(
+              user.username ||
+              user.name ||
+              "Student"
+            )}
+          </h3>
+
+          <p>
+            Email:
+            ${escapeHTML(user.email || "")}
+          </p>
+
+          <p>
+            Level:
+            ${user.level ?? "—"}
+          </p>
+
+          <p>
+            XP:
+            ${user.xp ?? "0"}
+          </p>
+
+          <p>
+            Coins:
+            ${user.coins ?? "0"}
+          </p>
+
+          <div class="actions">
+            <button class="btn" onclick="logout()">
+              Logout
+            </button>
+          </div>
+        </div>
+      `;
+
+    } catch (error) {
+      container.innerHTML = `
+        <p>You are currently browsing as a guest.</p>
+
+        <div class="actions">
+          <button class="btn" onclick="showLogin()">
+            Login
+          </button>
+
+          <button class="btn secondary" onclick="showRegister()">
+            Register
+          </button>
+        </div>
+      `;
+    }
+  }
+
+
+  function showLogin() {
+    document.getElementById("authArea").innerHTML = `
+      <div class="card" style="margin-top:15px;">
+        <h3>Login</h3>
+
+        <div class="form">
+          <input
+            id="loginEmail"
+            type="email"
+            placeholder="Email"
+          >
+
+          <input
+            id="loginPassword"
+            type="password"
+            placeholder="Password"
+          >
+
+          <button class="btn" onclick="login()">
+            Login
+          </button>
+        </div>
+
+        <div id="authMessage"></div>
+      </div>
+    `;
+  }
+
+
+  function showRegister() {
+    document.getElementById("authArea").innerHTML = `
+      <div class="card" style="margin-top:15px;">
+        <h3>Create Account</h3>
+
+        <div class="form">
+
+          <input
+            id="registerUsername"
+            type="text"
+            placeholder="Username"
+          >
+
+          <input
+            id="registerEmail"
+            type="email"
+            placeholder="Email"
+          >
+
+          <input
+            id="registerPassword"
+            type="password"
+            placeholder="Password"
+          >
+
+          <button class="btn success" onclick="register()">
+            Create Account
+          </button>
+
+        </div>
+
+        <div id="authMessage"></div>
+      </div>
+    `;
+  }
+
+
+  async function login() {
+    const email =
+      document.getElementById("loginEmail").value;
+
+    const password =
+      document.getElementById("loginPassword").value;
+
+    try {
+      await apiRequest("/auth/login", {
+        method: "POST",
+        body: JSON.stringify({
+          email,
+          password
+        })
+      });
+
+      document.getElementById("authMessage").innerHTML =
+        '<div class="success-message">Login successful.</div>';
+
+      setTimeout(loadProfile, 500);
+
+    } catch (error) {
+      document.getElementById("authMessage").innerHTML =
+        `<div class="error">${escapeHTML(error.message)}</div>`;
+    }
+  }
+
+
+  async function register() {
+    const username =
+      document.getElementById("registerUsername").value;
+
+    const email =
+      document.getElementById("registerEmail").value;
+
+    const password =
+      document.getElementById("registerPassword").value;
+
+    try {
+      await apiRequest("/auth/register", {
+        method: "POST",
+        body: JSON.stringify({
+          username,
+          email,
+          password
+        })
+      });
+
+      document.getElementById("authMessage").innerHTML =
+        '<div class="success-message">Account created successfully.</div>';
+
+      setTimeout(loadProfile, 500);
+
+    } catch (error) {
+      document.getElementById("authMessage").innerHTML =
+        `<div class="error">${escapeHTML(error.message)}</div>`;
+    }
+  }
+
+
+  async function logout() {
+    try {
+      await apiRequest("/auth/logout", {
+        method: "POST"
+      });
+    } catch (error) {
+      console.error(error);
+    }
+
+    loadProfile();
+  }
+
+
+  /* ============================================================
+     SECURITY
+  ============================================================ */
+
+  function escapeHTML(value) {
+    return String(value ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
+
+
+  /* ============================================================
+     INITIALIZE
+  ============================================================ */
+
+  document.addEventListener("DOMContentLoaded", () => {
+    loadPlatformInfo();
+    loadSubjects();
+    addGPACourse();
+  });
+
+</script>
+
+</body>
+  </html>
