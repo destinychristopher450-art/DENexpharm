@@ -4531,7 +4531,487 @@ app.post(
       createdAt: nowISO()
     };
 
+          if (!language.name || !language.code) {
+        return sendError(
+          res,
+          400,
+          "Language name and code are required."
+        );
+      }
+
+      const existing = db.languages.find(
+        (item) =>
+          item.code.toLowerCase() === language.code.toLowerCase()
+      );
+
+      if (existing) {
+        return sendError(
+          res,
+          409,
+          "A language with this code already exists."
+        );
+      }
+
+      db.languages.push(language);
+      writeDatabase(db);
+
+      createAuditLog(
+        req.user.id,
+        "language_created",
+        {
+          languageId: language.id,
+          code: language.code
+        }
+      );
+
+      return sendSuccess(
+        res,
+        { language },
+        "Language created successfully.",
+        201
+      );
+    }
+  );
+
+  /*
+   * ============================================================
+   * ADMIN LANGUAGE PHRASE MANAGEMENT
+   * ============================================================
+   */
+
+  app.post(
+    "/api/admin/languages/:languageId/phrases",
+    authRequired,
+    adminRequired,
+    (req, res) => {
+      const db = readDatabase();
+
+      const language = db.languages.find(
+        (item) => item.id === req.params.languageId
+      );
+
+      if (!language) {
+        return sendError(res, 404, "Language not found.");
+      }
+
+      const phrase = {
+        id: generateId("phrase"),
+        languageId: language.id,
+        category: safeText(req.body.category, 100),
+        english: safeText(req.body.english, 500),
+        translation: safeText(req.body.translation, 500),
+        pronunciation: safeText(req.body.pronunciation, 500),
+        counsellingNote: safeText(
+          req.body.counsellingNote,
+          1000
+        ),
+        createdAt: nowISO()
+      };
+
+      if (!phrase.english || !phrase.translation) {
+        return sendError(
+          res,
+          400,
+          "English phrase and translation are required."
+        );
+      }
+
+      db.languagePhrases.push(phrase);
+      writeDatabase(db);
+
+      createAuditLog(
+        req.user.id,
+        "language_phrase_created",
+        {
+          languageId: language.id,
+          phraseId: phrase.id
+        }
+      );
+
+      return sendSuccess(
+        res,
+        { phrase },
+        "Language phrase created successfully.",
+        201
+      );
+    }
+  );
+
+  /*
+   * ============================================================
+   * BATTLE STATUS
+   * ============================================================
+   */
+
+  app.get(
+    "/api/battles/:id",
+    authRequired,
+    (req, res) => {
+      const db = readDatabase();
+
+      const battle = db.battles.find(
+        (item) => item.id === req.params.id
+      );
+
+      if (!battle) {
+        return sendError(res, 404, "Battle not found.");
+      }
+
+      const isParticipant =
+        battle.creatorId === req.user.id ||
+        battle.opponentId === req.user.id;
+
+      if (!isParticipant) {
+        return sendError(
+          res,
+          403,
+          "You are not a participant in this battle."
+        );
+      }
+
+      /*
+       * Enforce battle expiration on status checks.
+       */
+      if (
+        battle.status === "active" &&
+        battle.endsAt &&
+        new Date(battle.endsAt).getTime() <= Date.now()
+      ) {
+        battle.status = "expired";
+        battle.completedAt = nowISO();
+
+        writeDatabase(db);
+      }
+
+      const responseBattle = {
+        id: battle.id,
+        type: battle.type,
+        status: battle.status,
+        creatorId: battle.creatorId,
+        opponentId: battle.opponentId,
+        questionIds: battle.questionIds,
+        startedAt: battle.startedAt,
+        endsAt: battle.endsAt,
+        completedAt: battle.completedAt,
+        creatorScore: battle.creatorScore || 0,
+        opponentScore: battle.opponentScore || 0,
+        winnerId: battle.winnerId || null,
+        createdAt: battle.createdAt
+      };
+
+      return sendSuccess(
+        res,
+        { battle: responseBattle },
+        "Battle status retrieved."
+      );
+    }
+  );
+
+  /*
+   * ============================================================
+   * BATTLE SUBMISSION EXPIRATION / CLEANUP
+   * ============================================================
+   */
+
+  app.post(
+    "/api/battles/:id/expire",
+    authRequired,
+    (req, res) => {
+      const db = readDatabase();
+
+      const battle = db.battles.find(
+        (item) => item.id === req.params.id
+      );
+
+      if (!battle) {
+        return sendError(res, 404, "Battle not found.");
+      }
+
+      const isParticipant =
+        battle.creatorId === req.user.id ||
+        battle.opponentId === req.user.id;
+
+      if (!isParticipant) {
+        return sendError(
+          res,
+          403,
+          "You are not a participant in this battle."
+        );
+      }
+
+      if (battle.status !== "active") {
+        return sendSuccess(
+          res,
+          { battle },
+          "Battle is not active."
+        );
+      }
+
+      if (
+        battle.endsAt &&
+        new Date(battle.endsAt).getTime() > Date.now()
+      ) {
+        return sendError(
+          res,
+          400,
+          "Battle has not expired yet."
+        );
+      }
+
+      battle.status = "expired";
+      battle.completedAt = nowISO();
+
+      writeDatabase(db);
+
+      createAuditLog(
+        req.user.id,
+        "battle_expired",
+        {
+          battleId: battle.id
+        }
+      );
+
+      return sendSuccess(
+        res,
+        { battle },
+        "Battle expired."
+      );
+    }
+  );
+
+  /*
+   * ============================================================
+   * SESSION CLEANUP
+   * ============================================================
+   */
+
+  function cleanupExpiredSessions() {
+    const db = readDatabase();
+    const before = db.sessions.length;
+
+    db.sessions = db.sessions.filter(
+      (session) =>
+        session.expiresAt &&
+        new Date(session.expiresAt).getTime() > Date.now()
+    );
+
+    if (db.sessions.length !== before) {
+      writeDatabase(db);
+    }
+
+    return before - db.sessions.length;
+  }
+
+  /*
+   * ============================================================
+   * PERIODIC MAINTENANCE
+   * ============================================================
+   */
+
+  const maintenanceInterval = setInterval(() => {
+    try {
+      cleanupExpiredSessions();
+    } catch (error) {
+      console.error(
+        "DENexpharm maintenance error:",
+        error
+      );
+    }
+  }, 60 * 60 * 1000);
+
+  /*
+   * ============================================================
+   * STATIC FRONTEND
+   * ============================================================
+   */
+
+  app.use(express.static(PUBLIC_DIR));
+
+  /*
+   * ============================================================
+   * SPA FALLBACK
+   * ============================================================
+   */
+
+  app.use((req, res, next) => {
     if (
-      !language.name ||
-      !language.code
+      req.method === "GET" &&
+      !req.path.startsWith("/api") &&
+      req.path !== "/health"
+    ) {
+      const indexFile = path.join(
+        PUBLIC_DIR,
+        "index.html"
+      );
+
+      if (fs.existsSync(indexFile)) {
+        return res.sendFile(indexFile);
+      }
+    }
+
+    return next();
+  });
+
+  /*
+   * ============================================================
+   * 404 HANDLER
+   * ============================================================
+   */
+
+  app.use((req, res) => {
+    if (req.path.startsWith("/api")) {
+      return sendError(
+        res,
+        404,
+        "API route not found."
+      );
+    }
+
+    return res.status(404).send("Page not found.");
+  });
+
+  /*
+   * ============================================================
+   * GLOBAL ERROR HANDLER
+   * ============================================================
+   */
+
+  app.use((err, req, res, next) => {
+    console.error(
+      "DENexpharm server error:",
+      err
+    );
+
+    if (res.headersSent) {
+      return next(err);
+    }
+
+    return sendError(
+      res,
+      500,
+      IS_PRODUCTION
+        ? "Internal server error."
+        : err.message || "Internal server error."
+    );
+  });
+
+  /*
+   * ============================================================
+   * DATABASE INITIALIZATION
+   * ============================================================
+   */
+
+  ensureDatabase();
+  seedContent();
+
+  /*
+   * ============================================================
+   * START SERVER
+   * ============================================================
+   */
+
+  const server = app.listen(PORT, () => {
+    console.log("============================================================");
+    console.log("DENexpharm server started");
+    console.log("============================================================");
+    console.log(`Application : ${APP_NAME}`);
+    console.log(`Version     : ${APP_VERSION}`);
+    console.log(`Content     : ${CONTENT_YEAR}`);
+    console.log(`Environment : ${NODE_ENV}`);
+    console.log(`Port        : ${PORT}`);
+    console.log(`URL         : http://localhost:${PORT}`);
+    console.log("============================================================");
+  });
+
+  /*
+   * ============================================================
+   * GRACEFUL SHUTDOWN
+   * ============================================================
+   */
+
+  function gracefulShutdown(signal) {
+    console.log(
+      `\n${signal} received. Shutting down DENexpharm...`
+    );
+
+    clearInterval(maintenanceInterval);
+
+    server.close((error) => {
+      if (error) {
+        console.error(
+          "Error while shutting down server:",
+          error
+        );
+
+        process.exit(1);
+      }
+
+      console.log(
+        "DENexpharm server stopped successfully."
+      );
+
+      process.exit(0);
+    });
+
+    setTimeout(() => {
+      console.error(
+        "Forced shutdown after timeout."
+      );
+
+      process.exit(1);
+    }, 10000).unref();
+  }
+
+  process.on(
+    "SIGTERM",
+    () => gracefulShutdown("SIGTERM")
+  );
+
+  process.on(
+    "SIGINT",
+    () => gracefulShutdown("SIGINT")
+  );
+
+  /*
+   * ============================================================
+   * PROCESS ERROR HANDLING
+   * ============================================================
+   */
+
+  process.on(
+    "unhandledRejection",
+    (reason) => {
+      console.error(
+        "Unhandled promise rejection:",
+        reason
+      );
+    }
+  );
+
+  process.on(
+    "uncaughtException",
+    (error) => {
+      console.error(
+        "Uncaught exception:",
+        error
+      );
+
+      /*
+       * Give the process a short opportunity to flush logs
+       * before exiting. This prevents the application from
+       * continuing in an unknown state.
+       */
+      setTimeout(() => {
+        process.exit(1);
+      }, 1000).unref();
+    }
+  );
+
+  /*
+   * ============================================================
+   * EXPORT APP
+   * ============================================================
+   */
+
+  module.exports = app;
        
