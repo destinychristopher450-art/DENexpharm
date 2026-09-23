@@ -1,0 +1,17 @@
+{
+  "name": "denexpharm",
+  "version": "3.0.0",
+  "description": "DENexpharm - Full Stack Pharmacy Learning, GPA, Competition and Student Platform",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^5.1.0"
+  }
+}
