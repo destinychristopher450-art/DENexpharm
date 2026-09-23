@@ -2830,35 +2830,6 @@ app.get(
   }
 );
 
-app.get(
-  "/api/languages/phrases",
-  authRequired,
-  (req, res) => {
-    const db = readDatabase();
-
-    let phrases = [...db.languagePhrases];
-
-    if (req.query.language) {
-      phrases = phrases.filter(
-        (item) =>
-          String(item.language).toLowerCase() ===
-          String(req.query.language).toLowerCase()
-      );
-    }
-
-    if (req.query.search) {
-      const search = String(req.query.search).toLowerCase();
-
-      phrases = phrases.filter((item) =>
-        JSON.stringify(item)
-          .toLowerCase()
-          .includes(search)
-      );
-    }
-
-    return sendSuccess(res, { phrases });
-  }
-);
 
 /* ============================================================
    BOOKMARKS
