@@ -1592,9 +1592,7 @@ function seedContent() {
             "This would not correspond to a 5% w/v solution."
         },
         learningPoints: [
-          "Percentage w/v means grams per 100 mL.",
-          "Use proportion to scale solution quantities        learningPoints: [
-          "Percentage w/v means grams of solute per 100 mL of solution.",
+          "Percentage w/v means grams per 100 mL of solution.",
           "Use proportion to scale solution quantities.",
           "A 5% w/v solution contains 5 g in every 100 mL."
         ],
@@ -2907,8 +2905,1683 @@ app.post(
         item.questionId === question.id
     );
 
+    /* ============================================================
+   BOOKMARKS — CONTINUED
+============================================================ */
+
+app.post(
+  "/api/bookmarks/:questionId",
+  authRequired,
+  (req, res) => {
+    const db = readDatabase();
+
+    const question = findQuestion(
+      db,
+      req.params.questionId
+    );
+
+    if (!question) {
+      return sendError(res, 404, "Question not found.");
+    }
+
+    const existing = db.bookmarks.find(
+      (item) =>
+        item.userId === req.user.id &&
+        item.questionId === question.id
+    );
+
     if (existing) {
       return sendSuccess(
         res,
         { bookmark: existing },
+        "Question is already bookmarked."
+      );
+    }
+
+    const bookmark = {
+      id: generateId("bookmark"),
+      userId: req.user.id,
+      questionId: question.id,
+      createdAt: nowISO()
+    };
+
+    db.bookmarks.push(bookmark);
+    writeDatabase(db);
+
+    createAuditLog(
+      req.user.id,
+      "bookmark_added",
+      { questionId: question.id }
+    );
+
+    return sendSuccess(
+      res,
+      {
+        bookmark,
+        question: sanitizeQuestion(question)
+      },
+      "Question bookmarked.",
+      201
+    );
+  }
+);
+
+app.delete(
+  "/api/bookmarks/:questionId",
+  authRequired,
+  (req, res) => {
+    const db = readDatabase();
+
+    const before = db.bookmarks.length;
+
+    db.bookmarks = db.bookmarks.filter(
+      (item) =>
+        !(
+          item.userId === req.user.id &&
+          item.questionId === req.params.questionId
+        )
+    );
+
+    if (db.bookmarks.length === before) {
+      return sendError(
+        res,
+        404,
+        "Bookmark not found."
+      );
+    }
+
+    writeDatabase(db);
+
+    createAuditLog(
+      req.user.id,
+      "bookmark_removed",
+      {
+        questionId: req.params.questionId
+      }
+    );
+
+    return sendSuccess(
+      res,
+      {},
+      "Bookmark removed."
+    );
+  }
+);
+
+
+/* ============================================================
+   ANALYTICS
+============================================================ */
+
+app.get(
+  "/api/analytics/me",
+  authRequired,
+  (req, res) => {
+    const db = readDatabase();
+
+    const results = db.quizResults.filter(
+      (item) => item.userId === req.user.id
+    );
+
+    const answered = results.reduce(
+      (sum, item) => sum + (Number(item.total) || 0),
+      0
+    );
+
+    const correct = results.reduce(
+      (sum, item) => sum + (Number(item.correct) || 0),
+      0
+    );
+
+    const quizzes = results.length;
+
+    const averageScore =
+      quizzes > 0
+        ? Number(
+            (
+              results.reduce(
+                (sum, item) =>
+                  sum + (Number(item.percentage) || 0),
+                0
+              ) / quizzes
+            ).toFixed(2)
+          )
+        : 0;
+
+    const subjectStats = {};
+
+    results.forEach((result) => {
+      const quiz = db.quizAttempts.find(
+        (item) => item.id === result.quizId
+      );
+
+      const subject =
+        quiz?.subject || "Mixed";
+
+      if (!subjectStats[subject]) {
+        subjectStats[subject] = {
+          subject,
+          attempts: 0,
+          correct: 0,
+          total: 0,
+          percentage: 0
+        };
+      }
+
+      subjectStats[subject].attempts += 1;
+      subjectStats[subject].correct +=
+        Number(result.correct) || 0;
+      subjectStats[subject].total +=
+        Number(result.total) || 0;
+    });
+
+    Object.values(subjectStats).forEach((item) => {
+      item.percentage =
+        item.total > 0
+          ? Number(
+              ((item.correct / item.total) * 100).toFixed(2)
+            )
+          : 0;
+    });
+
+    return sendSuccess(res, {
+      overview: {
+        questionsAnswered: answered,
+        correctAnswers: correct,
+        quizzesCompleted: quizzes,
+        averageScore
+      },
+      subjectPerformance:
+        Object.values(subjectStats)
+    });
+  }
+);
+
+
+/* ============================================================
+   WEAK TOPIC DETECTION
+============================================================ */
+
+app.get(
+  "/api/analytics/weak-topics",
+  authRequired,
+  (req, res) => {
+    const db = readDatabase();
+
+    const userResults = db.quizResults.filter(
+      (item) => item.userId === req.user.id
+    );
+
+    const topicStats = {};
+
+    userResults.forEach((result) => {
+      const quiz = db.quizAttempts.find(
+        (item) => item.id === result.quizId
+      );
+
+      if (!quiz) return;
+
+      quiz.questionIds.forEach((questionId) => {
+        const question = findQuestion(
+          db,
+          questionId
+        );
+
+        if (!question) return;
+
+        const topic =
+          question.topic || "General";
+
+        if (!topicStats[topic]) {
+          topicStats[topic] = {
+            topic,
+            subject: question.subject,
+            questions: 0,
+            estimatedWeakness: 0
+          };
+        }
+
+        topicStats[topic].questions += 1;
+      });
+    });
+
+    const weakTopics = Object.values(topicStats)
+      .map((item) => ({
+        ...item,
+        estimatedWeakness:
+          Math.min(
+            100,
+            Math.max(
+              0,
+              100 -
+                Math.min(
+                  100,
+                  item.questions * 10
+                )
+            )
+          )
+      }))
+      .sort(
+        (a, b) =>
+          b.estimatedWeakness -
+          a.estimatedWeakness
+      );
+
+    return sendSuccess(res, {
+      weakTopics
+    });
+  }
+);
+
+
+/* ============================================================
+   WALLET
+============================================================ */
+
+app.get(
+  "/api/wallet",
+  authRequired,
+  (req, res) => {
+    const db = readDatabase();
+
+    const wallet =
+      db.wallets.find(
+        (item) =>
+          item.userId === req.user.id
+      ) ||
+      {
+        id: generateId("wallet"),
+        userId: req.user.id,
+        balance: req.user.coins || 0,
+        lifetimeEarned: 0,
+        lifetimeSpent: 0,
+        createdAt: nowISO(),
+        updatedAt: nowISO()
+      };
+
+    return sendSuccess(res, {
+      wallet
+    });
+  }
+);
+
+app.get(
+  "/api/wallet/transactions",
+  authRequired,
+  (req, res) => {
+    const db = readDatabase();
+
+    const transactions =
+      db.walletTransactions
+        .filter(
+          (item) =>
+            item.userId === req.user.id
+        )
+        .sort(
+          (a, b) =>
+            new Date(b.createdAt) -
+            new Date(a.createdAt)
+        );
+
+    return sendSuccess(
+      res,
+      paginate(
+        transactions,
+        req.query.page,
+        req.query.limit
+      )
+    );
+  }
+);
+
+
+/* ============================================================
+   REFERRAL SYSTEM
+============================================================ */
+
+app.get(
+  "/api/referrals",
+  authRequired,
+  (req, res) => {
+    const db = readDatabase();
+
+    const referrals =
+      db.referrals.filter(
+        (item) =>
+          item.referrerId === req.user.id ||
+          item.referredUserId === req.user.id
+      );
+
+    return sendSuccess(res, {
+      referralCode:
+        req.user.referralCode,
+      referrals
+    });
+  }
+);
+
+app.post(
+  "/api/referrals/apply",
+  authRequired,
+  (req, res) => {
+    const code = safeText(
+      req.body.referralCode,
+      100
+    );
+
+    if (!code) {
+      return sendError(
+        res,
+        400,
+        "Referral code is required."
+      );
+    }
+
+    const db = readDatabase();
+
+    const referrer = db.users.find(
+      (user) =>
+        user.referralCode &&
+        user.referralCode.toLowerCase() ===
+          code.toLowerCase()
+    );
+
+    if (!referrer) {
+      return sendError(
+        res,
+        404,
+        "Referral code not found."
+      );
+    }
+
+    if (referrer.id === req.user.id) {
+      return sendError(
+        res,
+        400,
+        "You cannot use your own referral code."
+      );
+    }
+
+    const alreadyReferred =
+      db.referrals.find(
+        (item) =>
+          item.referredUserId ===
+          req.user.id
+      );
+
+    if (alreadyReferred) {
+      return sendError(
+        res,
+        400,
+        "A referral has already been applied to this account."
+      );
+    }
+
+    db.referrals.push({
+      id: generateId("referral"),
+      referrerId: referrer.id,
+      referredUserId: req.user.id,
+      referralCode: referrer.referralCode,
+      status: "completed",
+      createdAt: nowISO()
+    });
+
+    ensureUserDefaults(referrer);
+    ensureUserDefaults(req.user);
+
+    referrer.coins += 50;
+    req.user.coins += 25;
+
+    const referrerWallet =
+      db.wallets.find(
+        (item) =>
+          item.userId === referrer.id
+      );
+
+    const userWallet =
+      db.wallets.find(
+        (item) =>
+          item.userId === req.user.id
+      );
+
+    if (referrerWallet) {
+      referrerWallet.balance =
+        referrer.coins;
+      referrerWallet.lifetimeEarned += 50;
+      referrerWallet.updatedAt = nowISO();
+    }
+
+    if (userWallet) {
+      userWallet.balance =
+        req.user.coins;
+      userWallet.lifetimeEarned += 25;
+      userWallet.updatedAt = nowISO();
+    }
+
+    db.walletTransactions.push(
+      {
+        id: generateId("wallet_tx"),
+        userId: referrer.id,
+        type: "credit",
+        amount: 50,
+        reason: "Referral reward",
+        createdAt: nowISO()
+      },
+      {
+        id: generateId("wallet_tx"),
+        userId: req.user.id,
+        type: "credit",
+        amount: 25,
+        reason: "Referral signup reward",
+        createdAt: nowISO()
+      }
+    );
+
+    writeDatabase(db);
+
+    return sendSuccess(
+      res,
+      {},
+      "Referral applied successfully."
+    );
+  }
+);
+
+
+/* ============================================================
+   PREMIUM SUBSCRIPTIONS
+============================================================ */
+
+app.get(
+  "/api/premium/status",
+  authRequired,
+  (req, res) => {
+    const subscription =
+      getActiveSubscription(
+        req.user.id
+      );
+
+    return sendSuccess(res, {
+      premium: Boolean(subscription),
+      subscription
+    });
+  }
+);
+
+app.get(
+  "/api/premium/plans",
+  (req, res) => {
+    return sendSuccess(res, {
+      plans: [
+        {
+          id: "monthly",
+          name: "DENexpharm Premium Monthly",
+          durationDays: 30,
+          price: Number(
+            process.env.PREMIUM_MONTHLY_PRICE ||
+              2500
+          ),
+          currency: "NGN",
+          features: [
+            "Premium question banks",
+            "Advanced analytics",
+            "Expanded library",
+            "Premium study resources",
+            "Advanced competition features"
+          ]
+        },
+        {
+          id: "yearly",
+          name: "DENexpharm Premium Yearly",
+          durationDays: 365,
+          price: Number(
+            process.env.PREMIUM_YEARLY_PRICE ||
+              20000
+          ),
+          currency: "NGN",
+          features: [
+            "All monthly premium features",
+            "Year-long access",
+            "Advanced learning analytics",
+            "Premium educational resources"
+          ]
+        }
+      ]
+    });
+  }
+);
+
+
+/* ============================================================
+   PAYMENT ARCHITECTURE
+============================================================ */
+
+app.post(
+  "/api/payments/initialize",
+  authRequired,
+  async (req, res) => {
+    const planId = safeText(
+      req.body.planId,
+      50
+    );
+
+    const plans = {
+      monthly: {
+        durationDays: 30,
+        amount: Number(
+          process.env.PREMIUM_MONTHLY_PRICE ||
+            2500
+        )
+      },
+      yearly: {
+        durationDays: 365,
+        amount: Number(
+          process.env.PREMIUM_YEARLY_PRICE ||
+            20000
+        )
+      }
+    };
+
+    const plan = plans[planId];
+
+    if (!plan) {
+      return sendError(
+        res,
+        400,
+        "Invalid premium plan."
+      );
+    }
+
+    const provider =
+      process.env.PAYMENT_PROVIDER ||
+      "not_configured";
+
+    const reference =
+      `DENEX-${Date.now()}-${crypto
+        .randomBytes(4)
+        .toString("hex")
+        .toUpperCase()}`;
+
+    const payment = {
+      id: generateId("payment"),
+      userId: req.user.id,
+      reference,
+      planId,
+      amount: plan.amount,
+      currency: "NGN",
+      provider,
+      status: "pending",
+      createdAt: nowISO()
+    };
+
+    updateDatabase((db) => {
+      db.payments.push(payment);
+    });
+
+    /*
+      IMPORTANT:
+      This endpoint intentionally does NOT activate Premium.
+
+      A real Paystack/Flutterwave integration should create the
+      provider transaction here and return its authorization URL.
+    */
+
+    return sendSuccess(
+      res,
+      {
+        payment,
+        configured:
+          provider !== "not_configured",
+        message:
+          provider === "not_configured"
+            ? "Payment provider is not configured yet."
+            : "Payment initialization hook created."
+      },
+      "Payment request created.",
+      201
+    );
+  }
+);
+
+
+/* ============================================================
+   PAYMENT VERIFICATION HOOK
+============================================================ */
+
+app.post(
+  "/api/payments/verify",
+  authRequired,
+  async (req, res) => {
+    const reference = safeText(
+      req.body.reference,
+      150
+    );
+
+    if (!reference) {
+      return sendError(
+        res,
+        400,
+        "Payment reference is required."
+      );
+    }
+
+    const db = readDatabase();
+
+    const payment =
+      db.payments.find(
+        (item) =>
+          item.reference === reference &&
+          item.userId === req.user.id
+      );
+
+    if (!payment) {
+      return sendError(
+        res,
+        404,
+        "Payment not found."
+      );
+    }
+
+    /*
+      SECURITY:
+      Never trust a client-provided "paid" flag.
+
+      The production implementation must verify the transaction
+      directly with Paystack, Flutterwave, or the configured
+      payment provider.
+    */
+
+    return sendSuccess(
+      res,
+      {
+        payment,
+        verified: false,
+        message:
+          "Provider verification must be connected before premium access can be activated."
+      }
+    );
+  }
+);
+
+
+/* ============================================================
+   PREMIUM-PROTECTED EXAMPLE
+============================================================ */
+
+function premiumRequired(
+  req,
+  res,
+  next
+) {
+  if (!isPremiumUser(req.user.id)) {
+    return sendError(
+      res,
+      402,
+      "Premium subscription required."
+    );
+  }
+
+  next();
+}
+
+app.get(
+  "/api/premium/library",
+  authRequired,
+  premiumRequired,
+  (req, res) => {
+    const db = readDatabase();
+
+    const items = db.library.filter(
+      (item) =>
+        item.premium === true
+    );
+
+    return sendSuccess(res, {
+      items
+    });
+  }
+);
+
+
+/* ============================================================
+   FEEDBACK
+============================================================ */
+
+app.post(
+  "/api/feedback",
+  authRequired,
+  (req, res) => {
+    const type = safeText(
+      req.body.type,
+      50
+    );
+
+    const message = safeText(
+      req.body.message,
+      2000
+    );
+
+    const rating = clampNumber(
+      req.body.rating,
+      1,
+      5,
+      0
+    );
+
+    if (!message) {
+      return sendError(
+        res,
+        400,
+        "Feedback message is required."
+      );
+    }
+
+    const feedback = {
+      id: generateId("feedback"),
+      userId: req.user.id,
+      type: type || "general",
+      message,
+      rating,
+      status: "new",
+      createdAt: nowISO()
+    };
+
+    updateDatabase((db) => {
+      db.feedback.push(feedback);
+    });
+
+    return sendSuccess(
+      res,
+      { feedback },
+      "Thank you for your feedback.",
+      201
+    );
+  }
+);
+
+app.get(
+  "/api/feedback/mine",
+  authRequired,
+  (req, res) => {
+    const db = readDatabase();
+
+    const feedback =
+      db.feedback
+        .filter(
+          (item) =>
+            item.userId === req.user.id
+        )
+        .sort(
+          (a, b) =>
+            new Date(b.createdAt) -
+            new Date(a.createdAt)
+        );
+
+    return sendSuccess(res, {
+      feedback
+    });
+  }
+);
+
+
+/* ============================================================
+   SEARCH
+============================================================ */
+
+app.get(
+  "/api/search",
+  authRequired,
+  (req, res) => {
+    const query = safeText(
+      req.query.q,
+      200
+    ).toLowerCase();
+
+    if (!query) {
+      return sendError(
+        res,
+        400,
+        "Search query is required."
+      );
+    }
+
+    const db = readDatabase();
+
+    const questions =
+      db.questions
+        .filter((question) => {
+          const searchable =
+            [
+              question.question,
+              question.subject,
+              question.topic,
+              ...(question.tags || [])
+            ]
+              .join(" ")
+              .toLowerCase();
+
+          return searchable.includes(query);
+        })
+        .map(sanitizeQuestion)
+        .slice(0, 50);
+
+    const library =
+      db.library
+        .filter((item) => {
+          const searchable =
+            [
+              item.title,
+              item.description,
+              item.subject,
+              item.topic
+            ]
+              .join(" ")
+              .toLowerCase();
+
+          return searchable.includes(query);
+        })
+        .slice(0, 30);
+
+    const pharmacopoeia =
+      db.pharmacopoeia
+        .filter((item) =>
+          JSON.stringify(item)
+            .toLowerCase()
+            .includes(query)
+        )
+        .slice(0, 30);
+
+    return sendSuccess(res, {
+      query,
+      results: {
+        questions,
+        library,
+        pharmacopoeia
+      }
+    });
+  }
+);
+
+
+/* ============================================================
+   NOTIFICATIONS
+============================================================ */
+
+app.get(
+  "/api/notifications",
+  authRequired,
+  (req, res) => {
+    const db = readDatabase();
+
+    const notifications =
+      db.notifications
+        .filter(
+          (item) =>
+            item.userId === req.user.id
+        )
+        .sort(
+          (a, b) =>
+            new Date(b.createdAt) -
+            new Date(a.createdAt)
+        );
+
+    return sendSuccess(res, {
+      unread: notifications.filter(
+        (item) => !item.read
+      ).length,
+      notifications
+    });
+  }
+);
+
+app.patch(
+  "/api/notifications/:id/read",
+  authRequired,
+  (req, res) => {
+    const db = readDatabase();
+
+    const notification =
+      db.notifications.find(
+        (item) =>
+          item.id === req.params.id &&
+          item.userId === req.user.id
+      );
+
+    if (!notification) {
+      return sendError(
+        res,
+        404,
+        "Notification not found."
+      );
+    }
+
+    notification.read = true;
+
+    writeDatabase(db);
+
+    return sendSuccess(
+      res,
+      { notification },
+      "Notification marked as read."
+    );
+  }
+);
+
+
+/* ============================================================
+   ADMIN — QUESTIONS
+============================================================ */
+
+app.get(
+  "/api/admin/questions",
+  authRequired,
+  adminRequired,
+  (req, res) => {
+    const db = readDatabase();
+
+    let questions = [...db.questions];
+
+    if (req.query.subject) {
+      questions = questions.filter(
+        (item) =>
+          String(item.subject)
+            .toLowerCase() ===
+          String(req.query.subject)
+            .toLowerCase()
+      );
+    }
+
+    if (req.query.search) {
+      const search =
+        String(req.query.search)
+          .toLowerCase();
+
+      questions = questions.filter(
+        (item) =>
+          JSON.stringify(item)
+            .toLowerCase()
+            .includes(search)
+      );
+    }
+
+    return sendSuccess(
+      res,
+      paginate(
+        questions,
+        req.query.page,
+        req.query.limit
+      )
+    );
+  }
+);
+
+app.post(
+  "/api/admin/questions",
+  authRequired,
+  adminRequired,
+  (req, res) => {
+    const questionText = safeText(
+      req.body.question,
+      2000
+    );
+
+    const options =
+      Array.isArray(req.body.options)
+        ? req.body.options
+            .map((item) =>
+              safeText(item, 500)
+            )
+            .filter(Boolean)
+        : [];
+
+    const answer = safeText(
+      req.body.answer,
+      500
+    );
+
+    if (
+      !questionText ||
+      options.length < 2 ||
+      !answer
+    ) {
+      return sendError(
+        res,
+        400,
+        "Question, at least two options, and an answer are required."
+      );
+    }
+
+    if (!options.includes(answer)) {
+      return sendError(
+        res,
+        400,
+        "The answer must match one of the options."
+      );
+    }
+
+    const question = {
+      id: generateId("question"),
+      question: questionText,
+      options,
+      answer,
+      explanation: safeText(
+        req.body.explanation,
+        4000
+      ),
+      whyCorrect: safeText(
+        req.body.whyCorrect,
+        3000
+      ),
+      optionExplanations:
+        req.body.optionExplanations || {},
+      learningPoints:
+        Array.isArray(
+          req.body.learningPoints
+        )
+          ? req.body.learningPoints
+              .map((item) =>
+                safeText(item, 500)
+              )
+          : [],
+      subject: safeText(
+        req.body.subject,
+        150
+      ),
+      topic: safeText(
+        req.body.topic,
+        150
+      ),
+      difficulty: safeText(
+        req.body.difficulty,
+        50
+      ) || "medium",
+      curriculum: safeText(
+        req.body.curriculum,
+        100
+      ) || "International",
+      yearLevel: safeText(
+        req.body.yearLevel,
+        50
+      ),
+      semester: safeText(
+        req.body.semester,
+        50
+      ),
+      tags: Array.isArray(req.body.tags)
+        ? req.body.tags.map((tag) =>
+            safeText(tag, 100)
+          )
+        : [],
+      references:
+        Array.isArray(
+          req.body.references
+        )
+          ? req.body.references.map(
+              (ref) =>
+                safeText(ref, 500)
+            )
+          : [],
+      createdAt: nowISO(),
+      updatedAt: nowISO(),
+      createdBy: req.user.id
+    };
+
+    updateDatabase((db) => {
+      db.questions.push(question);
+    });
+
+    createAuditLog(
+      req.user.id,
+      "admin_question_created",
+      {
+        questionId: question.id
+      }
+    );
+
+    return sendSuccess(
+      res,
+      { question: sanitizeQuestionWithAnswer(question) },
+      "Question created successfully.",
+      201
+    );
+  }
+);
+
+app.patch(
+  "/api/admin/questions/:id",
+  authRequired,
+  adminRequired,
+  (req, res) => {
+    const db = readDatabase();
+
+    const question =
+      findQuestion(
+        db,
+        req.params.id
+      );
+
+    if (!question) {
+      return sendError(
+        res,
+        404,
+        "Question not found."
+      );
+    }
+
+    const fields = [
+      "question",
+      "subject",
+      "topic",
+      "difficulty",
+      "curriculum",
+      "yearLevel",
+      "semester",
+      "answer",
+      "explanation",
+      "whyCorrect"
+    ];
+
+    fields.forEach((field) => {
+      if (req.body[field] !== undefined) {
+        question[field] =
+          safeText(
+            req.body[field],
+            4000
+          );
+      }
+    });
+
+    if (Array.isArray(req.body.options)) {
+      question.options =
+        req.body.options
+          .map((item) =>
+            safeText(item, 500)
+          )
+          .filter(Boolean);
+    }
+
+    if (
+      Array.isArray(
+        req.body.learningPoints
+      )
+    ) {
+      question.learningPoints =
+        req.body.learningPoints.map(
+          (item) =>
+            safeText(item, 500)
+        );
+    }
+
+    if (Array.isArray(req.body.tags)) {
+      question.tags =
+        req.body.tags.map((item) =>
+          safeText(item, 100)
+        );
+    }
+
+    if (
+      Array.isArray(
+        req.body.references
+      )
+    ) {
+      question.references =
+        req.body.references.map(
+          (item) =>
+            safeText(item, 500)
+        );
+    }
+
+    question.updatedAt = nowISO();
+
+    writeDatabase(db);
+
+    createAuditLog(
+      req.user.id,
+      "admin_question_updated",
+      {
+        questionId: question.id
+      }
+    );
+
+    return sendSuccess(
+      res,
+      {
+        question:
+          sanitizeQuestionWithAnswer(
+            question
+          )
+      },
+      "Question updated."
+    );
+  }
+);
+
+app.delete(
+  "/api/admin/questions/:id",
+  authRequired,
+  adminRequired,
+  (req, res) => {
+    const db = readDatabase();
+
+    const exists =
+      db.questions.some(
+        (item) =>
+          item.id === req.params.id
+      );
+
+    if (!exists) {
+      return sendError(
+        res,
+        404,
+        "Question not found."
+      );
+    }
+
+    db.questions =
+      db.questions.filter(
+        (item) =>
+          item.id !== req.params.id
+      );
+
+    db.bookmarks =
+      db.bookmarks.filter(
+        (item) =>
+          item.questionId !==
+          req.params.id
+      );
+
+    writeDatabase(db);
+
+    createAuditLog(
+      req.user.id,
+      "admin_question_deleted",
+      {
+        questionId: req.params.id
+      }
+    );
+
+    return sendSuccess(
+      res,
+      {},
+      "Question deleted."
+    );
+  }
+);
+
+
+/* ============================================================
+   ADMIN — USERS
+============================================================ */
+
+app.get(
+  "/api/admin/users",
+  authRequired,
+  adminRequired,
+  (req, res) => {
+    const db = readDatabase();
+
+    const users =
+      db.users.map(
+        getPublicUser
+      );
+
+    return sendSuccess(
+      res,
+      paginate(
+        users,
+        req.query.page,
+        req.query.limit
+      )
+    );
+  }
+);
+
+app.get(
+  "/api/admin/users/:id",
+  authRequired,
+  adminRequired,
+  (req, res) => {
+    const db = readDatabase();
+
+    const user =
+      getUserById(
+        db,
+        req.params.id
+      );
+
+    if (!user) {
+      return sendError(
+        res,
+        404,
+        "User not found."
+      );
+    }
+
+    return sendSuccess(res, {
+      user: getPublicUser(user)
+    });
+  }
+);
+
+
+/* ============================================================
+   ADMIN — STATISTICS
+============================================================ */
+
+app.get(
+  "/api/admin/statistics",
+  authRequired,
+  adminRequired,
+  (req, res) => {
+    const db = readDatabase();
+
+    return sendSuccess(res, {
+      users: db.users.length,
+      questions: db.questions.length,
+      quizAttempts:
+        db.quizAttempts.length,
+      quizResults:
+        db.quizResults.length,
+      battles:
+        db.battles.length,
+      feedback:
+        db.feedback.length,
+      payments:
+        db.payments.length,
+      subscriptions:
+        db.subscriptions.length,
+      libraryItems:
+        db.library.length,
+      pharmacopoeiaEntries:
+        db.pharmacopoeia.length
+    });
+  }
+);
+
+
+/* ============================================================
+   ADMIN — AUDIT LOGS
+============================================================ */
+
+app.get(
+  "/api/admin/audit-logs",
+  authRequired,
+  adminRequired,
+  (req, res) => {
+    const db = readDatabase();
+
+    const logs =
+      [...db.auditLogs]
+        .sort(
+          (a, b) =>
+            new Date(b.createdAt) -
+            new Date(a.createdAt)
+        );
+
+    return sendSuccess(
+      res,
+      paginate(
+        logs,
+        req.query.page,
+        req.query.limit
+      )
+    );
+  }
+);
+
+
+/* ============================================================
+   PUBLIC STATISTICS
+============================================================ */
+
+app.get(
+  "/api/statistics",
+  (req, res) => {
+    const db = readDatabase();
+
+    return sendSuccess(res, {
+      platform: APP_NAME,
+      contentYear: CONTENT_YEAR,
+      statistics: {
+        registeredStudents:
+          db.users.length,
+        questions:
+          db.questions.length,
+        subjects:
+          SUBJECTS.length,
+        quizzesCompleted:
+          db.quizResults.length,
+        battles:
+          db.battles.length,
+        libraryResources:
+          db.library.length,
+        pharmacopoeiaResources:
+          db.pharmacopoeia.length,
+        supportedLanguages:
+          db.languages.length
+      }
+    });
+  }
+);
+
+
+/* ============================================================
+   PUBLIC SUBJECT INFORMATION
+============================================================ */
+
+app.get(
+  "/api/subjects/:subject",
+  (req, res) => {
+    const subject = SUBJECTS.find(
+      (item) =>
+        item.toLowerCase() ===
+        String(
+          req.params.subject
+        ).toLowerCase()
+    );
+
+    if (!subject) {
+      return sendError(
+        res,
+        404,
+        "Subject not found."
+      );
+    }
+
+    const db = readDatabase();
+
+    const questionCount =
+      db.questions.filter(
+        (item) =>
+          String(item.subject)
+            .toLowerCase() ===
+          subject.toLowerCase()
+      ).length;
+
+    return sendSuccess(res, {
+      subject,
+      questionCount
+    });
+  }
+);
+
+
+/* ============================================================
+   ADMIN — LIBRARY MANAGEMENT
+============================================================ */
+
+app.post(
+  "/api/admin/library",
+  authRequired,
+  adminRequired,
+  (req, res) => {
+    const item = {
+      id: generateId("library"),
+      title: safeText(
+        req.body.title,
+        300
+      ),
+      description: safeText(
+        req.body.description,
+        2000
+      ),
+      subject: safeText(
+        req.body.subject,
+        150
+      ),
+      topic: safeText(
+        req.body.topic,
+        150
+      ),
+      type: safeText(
+        req.body.type,
+        50
+      ),
+      url: safeText(
+        req.body.url,
+        1000
+      ),
+      premium:
+        Boolean(req.body.premium),
+      createdAt: nowISO(),
+      updatedAt: nowISO(),
+      createdBy: req.user.id
+    };
+
+    if (!item.title) {
+      return sendError(
+        res,
+        400,
+        "Library title is required."
+      );
+    }
+
+    updateDatabase((db) => {
+      db.library.push(item);
+    });
+
+    createAuditLog(
+      req.user.id,
+      "admin_library_created",
+      {
+        libraryId: item.id
+      }
+    );
+
+    return sendSuccess(
+      res,
+      { item },
+      "Library resource created.",
+      201
+    );
+  }
+);
+
+
+/* ============================================================
+   ADMIN — PHARMACOPOEIA MANAGEMENT
+============================================================ */
+
+app.post(
+  "/api/admin/pharmacopoeia",
+  authRequired,
+  adminRequired,
+  (req, res) => {
+    const entry = {
+      id: generateId(
+        "pharmacopoeia"
+      ),
+      title: safeText(
+        req.body.title,
+        300
+      ),
+      pharmacopoeia: safeText(
+        req.body.pharmacopoeia,
+        100
+      ),
+      category: safeText(
+        req.body.category,
+        150
+      ),
+      description: safeText(
+        req.body.description,
+        3000
+      ),
+      notes: safeText(
+        req.body.notes,
+        5000
+      ),
+      references:
+        Array.isArray(
+          req.body.references
+        )
+          ? req.body.references.map(
+              (item) =>
+                safeText(item, 500)
+            )
+          : [],
+      createdAt: nowISO(),
+      updatedAt: nowISO(),
+      createdBy: req.user.id
+    };
+
+    if (!entry.title) {
+      return sendError(
+        res,
+        400,
+        "Pharmacopoeia title is required."
+      );
+    }
+
+    updateDatabase((db) => {
+      db.pharmacopoeia.push(entry);
+    });
+
+    createAuditLog(
+      req.user.id,
+      "admin_pharmacopoeia_created",
+      {
+        entryId: entry.id
+      }
+    );
+
+    return sendSuccess(
+      res,
+      { entry },
+      "Pharmacopoeia entry created.",
+      201
+    );
+  }
+);
+
+
+/* ============================================================
+   ADMIN — LANGUAGE MANAGEMENT
+============================================================ */
+
+app.post(
+  "/api/admin/languages",
+  authRequired,
+  adminRequired,
+  (req, res) => {
+    const language = {
+      id: generateId("language"),
+      name: safeText(
+        req.body.name,
+        100
+      ),
+      code: safeText(
+        req.body.code,
+        20
+      ).toLowerCase(),
+      nativeName: safeText(
+        req.body.nativeName,
+        100
+      ),
+      createdAt: nowISO()
+    };
+
+    if (
+      !language.name ||
+      !language.code
        
