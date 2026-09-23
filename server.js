@@ -1174,4 +1174,1633 @@ function seedContent() {
 }
 
 /* ============================================================
-   WAL
+WALLET
+============================================================ */
+
+const WALLET_REWARD_LIMITS = {
+  dailyCoins: 500,
+  referralCoins: 250,
+  quizCoins: 100,
+  battleCoins: 200
+};
+
+function getUserById(db, userId) {
+  return db.users.find((user) => user.id === userId) || null;
+}
+
+function getPublicUser(user) {
+  if (!user) return null;
+
+  return {
+    id: user.id,
+    username: user.username,
+    email: user.email,
+    displayName: user.displayName,
+    country: user.country,
+    institution: user.institution,
+    program: user.program,
+    yearLevel: user.yearLevel,
+    semester: user.semester,
+    curriculum: user.curriculum,
+    xp: user.xp || 0,
+    coins: user.coins || 0,
+    level: user.level || 1,
+    streak: user.streak || 0,
+    longestStreak: user.longestStreak || 0,
+    questionsAnswered: user.questionsAnswered || 0,
+    questionsCorrect: user.questionsCorrect || 0,
+    quizzesCompleted: user.quizzesCompleted || 0,
+    battlesPlayed: user.battlesPlayed || 0,
+    battlesWon: user.battlesWon || 0,
+    createdAt: user.createdAt,
+    lastActiveAt: user.lastActiveAt
+  };
+}
+
+function ensureUserDefaults(user) {
+  user.xp = Number(user.xp) || 0;
+  user.coins = Number(user.coins) || 0;
+  user.level = Number(user.level) || 1;
+  user.streak = Number(user.streak) || 0;
+  user.longestStreak = Number(user.longestStreak) || 0;
+  user.questionsAnswered = Number(user.questionsAnswered) || 0;
+  user.questionsCorrect = Number(user.questionsCorrect) || 0;
+  user.quizzesCompleted = Number(user.quizzesCompleted) || 0;
+  user.battlesPlayed = Number(user.battlesPlayed) || 0;
+  user.battlesWon = Number(user.battlesWon) || 0;
+  user.lastActiveDate = user.lastActiveDate || null;
+  user.lastActiveAt = user.lastActiveAt || null;
+}
+
+function calculateLevel(xp) {
+  const safeXP = Math.max(0, Number(xp) || 0);
+  return Math.floor(Math.sqrt(safeXP / 100)) + 1;
+}
+
+function awardXPAndCoins(db, userId, xp, coins, reason = "reward") {
+  const user = getUserById(db, userId);
+
+  if (!user) {
+    return {
+      xpAwarded: 0,
+      coinsAwarded: 0,
+      level: 1,
+      xp: 0,
+      coins: 0
+    };
+  }
+
+  ensureUserDefaults(user);
+
+  const safeXP = Math.max(0, Math.floor(Number(xp) || 0));
+  const safeCoins = Math.max(0, Math.floor(Number(coins) || 0));
+
+  user.xp += safeXP;
+  user.coins += safeCoins;
+  user.level = calculateLevel(user.xp);
+
+  if (safeCoins > 0) {
+    db.walletTransactions.push({
+      id: generateId("wallet_tx"),
+      userId,
+      type: "credit",
+      amount: safeCoins,
+      reason,
+      createdAt: nowISO()
+    });
+  }
+
+  return {
+    xpAwarded: safeXP,
+    coinsAwarded: safeCoins,
+    level: user.level,
+    xp: user.xp,
+    coins: user.coins
+  };
+}
+
+function updateUserActivity(db, userId) {
+  const user = getUserById(db, userId);
+
+  if (!user) return;
+
+  ensureUserDefaults(user);
+
+  const today = todayKey();
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayKey = yesterday.toISOString().slice(0, 10);
+
+  if (user.lastActiveDate !== today) {
+    if (user.lastActiveDate === yesterdayKey) {
+      user.streak += 1;
+    } else {
+      user.streak = 1;
+    }
+
+    user.longestStreak = Math.max(
+      user.longestStreak,
+      user.streak
+    );
+
+    user.lastActiveDate = today;
+  }
+
+  user.lastActiveAt = nowISO();
+}
+
+/* ============================================================
+SESSION / AUTHENTICATION
+============================================================ */
+
+function createSession(db, userId) {
+  const rawToken = generateSecureToken();
+
+  const session = {
+    id: generateId("session"),
+    userId,
+    tokenHash: sha256(rawToken),
+    createdAt: nowISO(),
+    expiresAt: addDays(new Date(), SESSION_DAYS).toISOString()
+  };
+
+  db.sessions.push(session);
+
+  return rawToken;
+}
+
+function getBearerToken(req) {
+  const header = req.headers.authorization || "";
+
+  if (!header.startsWith("Bearer ")) {
+    return null;
+  }
+
+  return header.slice(7).trim() || null;
+}
+
+function getAuthenticatedUser(req) {
+  const token = getBearerToken(req);
+
+  if (!token) return null;
+
+  const db = readDatabase();
+  const tokenHash = sha256(token);
+
+  const session = db.sessions.find(
+    (item) =>
+      item.tokenHash === tokenHash &&
+      new Date(item.expiresAt).getTime() > Date.now()
+  );
+
+  if (!session) return null;
+
+  return getUserById(db, session.userId);
+}
+
+function authRequired(req, res, next) {
+  const user = getAuthenticatedUser(req);
+
+  if (!user) {
+    return sendError(
+      res,
+      "Authentication required.",
+      401,
+      "AUTH_REQUIRED"
+    );
+  }
+
+  req.user = user;
+  next();
+}
+
+function adminRequired(req, res, next) {
+  const user = getAuthenticatedUser(req);
+
+  if (!user) {
+    return sendError(
+      res,
+      "Authentication required.",
+      401,
+      "AUTH_REQUIRED"
+    );
+  }
+
+  if (user.role !== "admin") {
+    return sendError(
+      res,
+      "Administrator access required.",
+      403,
+      "ADMIN_REQUIRED"
+    );
+  }
+
+  req.user = user;
+  next();
+}
+
+/* ============================================================
+ACHIEVEMENT ENGINE
+============================================================ */
+
+function checkAchievements(db, userId) {
+  const user = getUserById(db, userId);
+
+  if (!user) return [];
+
+  ensureUserDefaults(user);
+
+  const unlocked = [];
+
+  for (const achievement of db.achievements) {
+    const alreadyUnlocked = db.userAchievements.some(
+      (item) =>
+        item.userId === userId &&
+        item.achievementId === achievement.id
+    );
+
+    if (alreadyUnlocked) continue;
+
+    let qualifies = false;
+
+    if (
+      achievement.id === "first_quiz" &&
+      user.quizzesCompleted >= 1
+    ) {
+      qualifies = true;
+    }
+
+    if (
+      achievement.id === "questions_10" &&
+      user.questionsAnswered >= 10
+    ) {
+      qualifies = true;
+    }
+
+    if (
+      achievement.id === "questions_100" &&
+      user.questionsAnswered >= 100
+    ) {
+      qualifies = true;
+    }
+
+    if (
+      achievement.id === "perfect_score" &&
+      user.perfectQuizzes >= 1
+    ) {
+      qualifies = true;
+    }
+
+    if (
+      achievement.id === "streak_7" &&
+      user.streak >= 7
+    ) {
+      qualifies = true;
+    }
+
+    if (
+      achievement.id === "streak_30" &&
+      user.streak >= 30
+    ) {
+      qualifies = true;
+    }
+
+    if (!qualifies) continue;
+
+    const reward = awardXPAndCoins(
+      db,
+      userId,
+      achievement.rewardXP || 0,
+      achievement.rewardCoins || 0,
+      `achievement:${achievement.id}`
+    );
+
+    const record = {
+      id: generateId("user_achievement"),
+      userId,
+      achievementId: achievement.id,
+      unlockedAt: nowISO(),
+      reward
+    };
+
+    db.userAchievements.push(record);
+    unlocked.push({
+      achievement,
+      reward
+    });
+  }
+
+  return unlocked;
+}
+
+/* ============================================================
+QUESTION HELPERS
+============================================================ */
+
+function sanitizeQuestion(question) {
+  if (!question) return null;
+
+  return {
+    id: question.id,
+    subject: question.subject,
+    topic: question.topic,
+    subtopic: question.subtopic,
+    difficulty: question.difficulty,
+    questionType: question.questionType,
+    question: question.question,
+    options: question.options || [],
+    curriculum: question.curriculum,
+    yearLevel: question.yearLevel,
+    semester: question.semester,
+    classification: question.classification,
+    tags: question.tags || [],
+    published: question.published !== false
+  };
+}
+
+function sanitizeQuestionWithAnswer(question) {
+  if (!question) return null;
+
+  return {
+    ...sanitizeQuestion(question),
+    correctAnswer: question.correctAnswer,
+    explanation: question.explanation,
+    whyCorrect: question.whyCorrect,
+    optionExplanations: question.optionExplanations || [],
+    learningPoints: question.learningPoints || [],
+    references: question.references || []
+  };
+}
+
+function findQuestion(db, questionId) {
+  return db.questions.find(
+    (question) => question.id === questionId
+  );
+}
+
+function calculateQuizScore(questions, answers) {
+  let correct = 0;
+
+  for (const question of questions) {
+    const supplied = answers?.[question.id];
+
+    if (
+      supplied !== undefined &&
+      Number(supplied) === Number(question.correctAnswer)
+    ) {
+      correct += 1;
+    }
+  }
+
+  const total = questions.length;
+  const percentage =
+    total > 0 ? Number(((correct / total) * 100).toFixed(2)) : 0;
+
+  return {
+    correct,
+    total,
+    percentage
+  };
+}
+
+/* ============================================================
+DAILY CHALLENGE
+============================================================ */
+
+function getDailyChallenge(db) {
+  const today = todayKey();
+
+  let challenge = db.dailyChallenges.find(
+    (item) => item.date === today
+  );
+
+  if (challenge) return challenge;
+
+  const publishedQuestions = db.questions.filter(
+    (question) => question.published !== false
+  );
+
+  if (publishedQuestions.length === 0) {
+    return null;
+  }
+
+  const selected =
+    publishedQuestions[
+      Math.floor(Math.random() * publishedQuestions.length)
+    ];
+
+  challenge = {
+    id: generateId("daily"),
+    date: today,
+    questionId: selected.id,
+    xpReward: 100,
+    coinReward: 20,
+    createdAt: nowISO()
+  };
+
+  db.dailyChallenges.push(challenge);
+
+  return challenge;
+}
+
+/* ============================================================
+SUBSCRIPTION HELPERS
+============================================================ */
+
+function getActiveSubscription(db, userId) {
+  const now = Date.now();
+
+  return (
+    db.subscriptions
+      .filter(
+        (subscription) =>
+          subscription.userId === userId &&
+          subscription.status === "active" &&
+          new Date(subscription.expiresAt).getTime() > now
+      )
+      .sort(
+        (a, b) =>
+          new Date(b.expiresAt) - new Date(a.expiresAt)
+      )[0] || null
+  );
+}
+
+function isPremiumUser(db, userId) {
+  return Boolean(getActiveSubscription(db, userId));
+}
+
+/* ============================================================
+APPLICATION MIDDLEWARE
+============================================================ */
+
+app.set("trust proxy", 1);
+
+app.use(
+  cors({
+    origin:
+      FRONTEND_ORIGIN === "*"
+        ? true
+        : FRONTEND_ORIGIN,
+    credentials: true
+  })
+);
+
+app.use(
+  express.json({
+    limit: "1mb"
+  })
+);
+
+app.use(
+  express.urlencoded({
+    extended: true,
+    limit: "1mb"
+  })
+);
+
+app.use(rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 500
+}));
+
+app.disable("x-powered-by");
+
+/* ============================================================
+REQUEST LOGGING
+============================================================ */
+
+app.use((req, res, next) => {
+  const started = Date.now();
+
+  res.on("finish", () => {
+    const duration = Date.now() - started;
+
+    if (
+      process.env.NODE_ENV !== "test"
+    ) {
+      console.log(
+        `${req.method} ${req.originalUrl} ${res.statusCode} ${duration}ms`
+      );
+    }
+  });
+
+  next();
+});
+
+/* ============================================================
+HEALTH / VERSION
+============================================================ */
+
+app.get("/health", (req, res) => {
+  return sendSuccess(
+    res,
+    {
+      app: APP_NAME,
+      status: "healthy",
+      environment: NODE_ENV,
+      nodeVersion: process.version,
+      timestamp: nowISO()
+    },
+    "DENexpharm server is healthy."
+  );
+});
+
+app.get("/api/health", (req, res) => {
+  return sendSuccess(
+    res,
+    {
+      app: APP_NAME,
+      status: "healthy",
+      version: APP_VERSION,
+      contentYear: CONTENT_YEAR,
+      timestamp: nowISO()
+    },
+    "API is healthy."
+  );
+});
+
+app.get("/api/version", (req, res) => {
+  return sendSuccess(
+    res,
+    {
+      name: APP_NAME,
+      version: APP_VERSION,
+      contentYear: CONTENT_YEAR,
+      node: process.version
+    },
+    "Version information."
+  );
+});
+
+/* ============================================================
+PUBLIC APP INFORMATION
+============================================================ */
+
+app.get("/api", (req, res) => {
+  return sendSuccess(
+    res,
+    {
+      name: APP_NAME,
+      version: APP_VERSION,
+      description:
+        "Global pharmacy learning, GPA, competition and student-support platform.",
+      features: [
+        "Pharmacy learning",
+        "Question bank",
+        "Detailed explanations",
+        "Quiz system",
+        "Quick Battle",
+        "Timed Battle",
+        "Daily Challenge",
+        "XP and coins",
+        "Achievements",
+        "Leaderboards",
+        "GPA calculator",
+        "Mini Library",
+        "Pharmacopoeia Hub",
+        "Pharmacy Language Assistant",
+        "Premium subscriptions",
+        "Analytics"
+      ]
+    },
+    "Welcome to DENexpharm API."
+  );
+});
+
+app.get("/api/subjects", (req, res) => {
+  return sendSuccess(res, SUBJECTS);
+});
+
+/* ============================================================
+REGISTER
+============================================================ */
+
+app.post("/api/auth/register", (req, res) => {
+  const email = normalizeEmail(req.body.email);
+  const username = safeText(req.body.username, 30);
+  const password = req.body.password;
+
+  const displayName =
+    safeText(
+      req.body.displayName ||
+      req.body.name ||
+      username,
+      80
+    );
+
+  if (!isValidEmail(email)) {
+    return sendError(
+      res,
+      "Please provide a valid email address.",
+      400,
+      "INVALID_EMAIL"
+    );
+  }
+
+  if (!isValidUsername(username)) {
+    return sendError(
+      res,
+      "Username must contain 3–30 letters, numbers, dots, underscores or hyphens.",
+      400,
+      "INVALID_USERNAME"
+    );
+  }
+
+  if (!isValidPassword(password)) {
+    return sendError(
+      res,
+      "Password must contain at least 8 characters.",
+      400,
+      "INVALID_PASSWORD"
+    );
+  }
+
+  const result = updateDatabase((db) => {
+    const existingEmail = db.users.find(
+      (user) => user.email === email
+    );
+
+    if (existingEmail) {
+      return {
+        error: "An account with this email already exists."
+      };
+    }
+
+    const existingUsername = db.users.find(
+      (user) =>
+        user.username.toLowerCase() === username.toLowerCase()
+    );
+
+    if (existingUsername) {
+      return {
+        error: "That username is already in use."
+      };
+    }
+
+    const passwordData = hashPassword(password);
+
+    const user = {
+      id: generateId("user"),
+      email,
+      username,
+      displayName,
+      password: passwordData,
+      role: "student",
+      country: safeText(req.body.country, 80),
+      institution: safeText(req.body.institution, 150),
+      program: safeText(req.body.program, 150),
+      yearLevel: safeText(req.body.yearLevel, 50),
+      semester: safeText(req.body.semester, 50),
+      curriculum: safeText(
+        req.body.curriculum || "international",
+        80
+      ),
+      xp: 0,
+      coins: 0,
+      level: 1,
+      streak: 0,
+      longestStreak: 0,
+      questionsAnswered: 0,
+      questionsCorrect: 0,
+      quizzesCompleted: 0,
+      perfectQuizzes: 0,
+      battlesPlayed: 0,
+      battlesWon: 0,
+      createdAt: nowISO(),
+      lastActiveAt: nowISO(),
+      lastActiveDate: todayKey()
+    };
+
+    db.users.push(user);
+
+    const token = createSession(db, user.id);
+
+    db.auditLogs.push({
+      id: generateId("audit"),
+      action: "register",
+      userId: user.id,
+      createdAt: nowISO()
+    });
+
+    return {
+      user: getPublicUser(user),
+      token
+    };
+  });
+
+  if (result.error) {
+    return sendError(res, result.error, 409, "REGISTER_FAILED");
+  }
+
+  return sendSuccess(
+    res,
+    result,
+    "Account created successfully.",
+    201
+  );
+});
+
+/* ============================================================
+LOGIN
+============================================================ */
+
+app.post("/api/auth/login", (req, res) => {
+  const email = normalizeEmail(req.body.email);
+  const password = req.body.password;
+
+  const result = updateDatabase((db) => {
+    const user = db.users.find(
+      (item) => item.email === email
+    );
+
+    if (
+      !user ||
+      !verifyPassword(password, user.password)
+    ) {
+      return {
+        error: "Invalid email or password."
+      };
+    }
+
+    ensureUserDefaults(user);
+    updateUserActivity(db, user.id);
+
+    const token = createSession(db, user.id);
+
+    db.auditLogs.push({
+      id: generateId("audit"),
+      action: "login",
+      userId: user.id,
+      createdAt: nowISO()
+    });
+
+    return {
+      user: getPublicUser(user),
+      token
+    };
+  });
+
+  if (result.error) {
+    return sendError(
+      res,
+      result.error,
+      401,
+      "LOGIN_FAILED"
+    );
+  }
+
+  return sendSuccess(
+    res,
+    result,
+    "Login successful."
+  );
+});
+
+/* ============================================================
+CURRENT USER
+============================================================ */
+
+app.get("/api/auth/me", authRequired, (req, res) => {
+  const db = readDatabase();
+
+  const user = getUserById(db, req.user.id);
+
+  if (!user) {
+    return sendError(
+      res,
+      "User account not found.",
+      404,
+      "USER_NOT_FOUND"
+    );
+  }
+
+  const subscription = getActiveSubscription(
+    db,
+    user.id
+  );
+
+  return sendSuccess(res, {
+    user: getPublicUser(user),
+    premium: Boolean(subscription),
+    subscription
+  });
+});
+
+/* ============================================================
+LOGOUT
+============================================================ */
+
+app.post("/api/auth/logout", authRequired, (req, res) => {
+  const token = getBearerToken(req);
+
+  updateDatabase((db) => {
+    const tokenHash = sha256(token);
+
+    db.sessions = db.sessions.filter(
+      (session) => session.tokenHash !== tokenHash
+    );
+
+    db.auditLogs.push({
+      id: generateId("audit"),
+      action: "logout",
+      userId: req.user.id,
+      createdAt: nowISO()
+    });
+  });
+
+  return sendSuccess(
+    res,
+    {},
+    "Logged out successfully."
+  );
+});
+
+/* ============================================================
+PROFILE
+============================================================ */
+
+app.get("/api/profile", authRequired, (req, res) => {
+  const db = readDatabase();
+  const user = getUserById(db, req.user.id);
+
+  return sendSuccess(res, {
+    user: getPublicUser(user)
+  });
+});
+
+app.patch("/api/profile", authRequired, (req, res) => {
+  const result = updateDatabase((db) => {
+    const user = getUserById(db, req.user.id);
+
+    if (!user) {
+      return { error: "User not found." };
+    }
+
+    if (req.body.username !== undefined) {
+      const username = safeText(req.body.username, 30);
+
+      if (!isValidUsername(username)) {
+        return {
+          error: "Invalid username."
+        };
+      }
+
+      const conflict = db.users.find(
+        (item) =>
+          item.id !== user.id &&
+          item.username.toLowerCase() === username.toLowerCase()
+      );
+
+      if (conflict) {
+        return {
+          error: "Username already exists."
+        };
+      }
+
+      user.username = username;
+    }
+
+    if (req.body.displayName !== undefined) {
+      user.displayName = safeText(
+        req.body.displayName,
+        80
+      );
+    }
+
+    const fields = [
+      "country",
+      "institution",
+      "program",
+      "yearLevel",
+      "semester",
+      "curriculum"
+    ];
+
+    for (const field of fields) {
+      if (req.body[field] !== undefined) {
+        user[field] = safeText(req.body[field], 150);
+      }
+    }
+
+    user.updatedAt = nowISO();
+
+    return {
+      user: getPublicUser(user)
+    };
+  });
+
+  if (result.error) {
+    return sendError(
+      res,
+      result.error,
+      400,
+      "PROFILE_UPDATE_FAILED"
+    );
+  }
+
+  return sendSuccess(
+    res,
+    result,
+    "Profile updated."
+  );
+});
+
+/* ============================================================
+QUESTIONS
+============================================================ */
+
+app.get("/api/questions", (req, res) => {
+  const db = readDatabase();
+
+  let questions = db.questions.filter(
+    (question) => question.published !== false
+  );
+
+  if (req.query.subject) {
+    const subject = safeText(req.query.subject, 100)
+      .toLowerCase();
+
+    questions = questions.filter(
+      (question) =>
+        String(question.subject).toLowerCase() === subject
+    );
+  }
+
+  if (req.query.topic) {
+    const topic = safeText(req.query.topic, 150)
+      .toLowerCase();
+
+    questions = questions.filter(
+      (question) =>
+        String(question.topic).toLowerCase() === topic
+    );
+  }
+
+  if (req.query.difficulty) {
+    questions = questions.filter(
+      (question) =>
+        question.difficulty === req.query.difficulty
+    );
+  }
+
+  if (req.query.yearLevel) {
+    questions = questions.filter(
+      (question) =>
+        String(question.yearLevel) ===
+        String(req.query.yearLevel)
+    );
+  }
+
+  if (req.query.semester) {
+    questions = questions.filter(
+      (question) =>
+        String(question.semester) ===
+        String(req.query.semester)
+    );
+  }
+
+  const result = paginate(
+    questions.map(sanitizeQuestion),
+    req.query.page,
+    req.query.pageSize
+  );
+
+  return sendSuccess(res, result);
+});
+
+app.get("/api/questions/:id", (req, res) => {
+  const db = readDatabase();
+  const question = findQuestion(
+    db,
+    req.params.id
+  );
+
+  if (!question || question.published === false) {
+    return sendError(
+      res,
+      "Question not found.",
+      404,
+      "QUESTION_NOT_FOUND"
+    );
+  }
+
+  return sendSuccess(
+    res,
+    sanitizeQuestionWithAnswer(question)
+  );
+});
+
+/* ============================================================
+QUIZ
+============================================================ */
+
+app.post("/api/quiz/start", authRequired, (req, res) => {
+  const db = readDatabase();
+
+  let questions = db.questions.filter(
+    (question) => question.published !== false
+  );
+
+  if (req.body.subject) {
+    questions = questions.filter(
+      (question) =>
+        String(question.subject).toLowerCase() ===
+        String(req.body.subject).toLowerCase()
+    );
+  }
+
+  if (req.body.difficulty) {
+    questions = questions.filter(
+      (question) =>
+        question.difficulty === req.body.difficulty
+    );
+  }
+
+  const requestedCount = clampNumber(
+    req.body.count || 10,
+    1,
+    50,
+    10
+  );
+
+  questions = questions
+    .sort(() => Math.random() - 0.5)
+    .slice(0, requestedCount);
+
+  const quizId = generateId("quiz");
+
+  const quiz = {
+    id: quizId,
+    userId: req.user.id,
+    questionIds: questions.map(
+      (question) => question.id
+    ),
+    subject: req.body.subject || "Mixed",
+    startedAt: nowISO(),
+    status: "active"
+  };
+
+  updateDatabase((database) => {
+    database.quizAttempts.push(quiz);
+  });
+
+  return sendSuccess(
+    res,
+    {
+      quizId,
+      questions: questions.map(sanitizeQuestion),
+      totalQuestions: questions.length
+    },
+    "Quiz started.",
+    201
+  );
+});
+
+app.post(
+  "/api/quiz/:quizId/submit",
+  authRequired,
+  (req, res) => {
+    const result = updateDatabase((db) => {
+      const quiz = db.quizAttempts.find(
+        (item) =>
+          item.id === req.params.quizId &&
+          item.userId === req.user.id
+      );
+
+      if (!quiz) {
+        return {
+          error: "Quiz not found."
+        };
+      }
+
+      if (quiz.status === "completed") {
+        return {
+          error: "This quiz has already been submitted."
+        };
+      }
+
+      const questions = quiz.questionIds
+        .map((id) => findQuestion(db, id))
+        .filter(Boolean);
+
+      const score = calculateQuizScore(
+        questions,
+        req.body.answers || {}
+      );
+
+      const xpReward =
+        score.correct * 10 +
+        (score.percentage === 100 ? 100 : 0);
+
+      const coinReward =
+        Math.min(
+          WALLET_REWARD_LIMITS.quizCoins,
+          score.correct * 2
+        );
+
+      const reward = awardXPAndCoins(
+        db,
+        req.user.id,
+        xpReward,
+        coinReward,
+        "quiz"
+      );
+
+      const user = getUserById(
+        db,
+        req.user.id
+      );
+
+      ensureUserDefaults(user);
+
+      user.questionsAnswered += score.total;
+      user.questionsCorrect += score.correct;
+      user.quizzesCompleted += 1;
+
+      if (score.percentage === 100) {
+        user.perfectQuizzes += 1;
+      }
+
+      updateUserActivity(
+        db,
+        req.user.id
+      );
+
+      quiz.status = "completed";
+      quiz.completedAt = nowISO();
+
+      const resultRecord = {
+        id: generateId("quiz_result"),
+        quizId: quiz.id,
+        userId: req.user.id,
+        answers: req.body.answers || {},
+        score,
+        reward,
+        completedAt: nowISO()
+      };
+
+      db.quizResults.push(resultRecord);
+
+      const unlocked = checkAchievements(
+        db,
+        req.user.id
+      );
+
+      return {
+        score,
+        reward,
+        achievements: unlocked,
+        explanations: questions.map(
+          sanitizeQuestionWithAnswer
+        )
+      };
+    });
+
+    if (result.error) {
+      return sendError(
+        res,
+        result.error,
+        400,
+        "QUIZ_SUBMISSION_FAILED"
+      );
+    }
+
+    return sendSuccess(
+      res,
+      result,
+      "Quiz submitted successfully."
+    );
+  }
+);
+
+/* ============================================================
+QUIZ HISTORY
+============================================================ */
+
+app.get(
+  "/api/quiz/history",
+  authRequired,
+  (req, res) => {
+    const db = readDatabase();
+
+    const results = db.quizResults
+      .filter(
+        (item) => item.userId === req.user.id
+      )
+      .sort(
+        (a, b) =>
+          new Date(b.completedAt) -
+          new Date(a.completedAt)
+      );
+
+    return sendSuccess(
+      res,
+      paginate(
+        results,
+        req.query.page,
+        req.query.pageSize
+      )
+    );
+  }
+);
+
+/* ============================================================
+DAILY CHALLENGE
+============================================================ */
+
+app.get(
+  "/api/daily-challenge",
+  authRequired,
+  (req, res) => {
+    const result = updateDatabase((db) => {
+      const challenge = getDailyChallenge(db);
+
+      if (!challenge) {
+        return {
+          error: "No questions are available."
+        };
+      }
+
+      const question = findQuestion(
+        db,
+        challenge.questionId
+      );
+
+      return {
+        challenge,
+        question: sanitizeQuestion(question)
+      };
+    });
+
+    if (result.error) {
+      return sendError(
+        res,
+        result.error,
+        404,
+        "DAILY_CHALLENGE_UNAVAILABLE"
+      );
+    }
+
+    return sendSuccess(
+      res,
+      result
+    );
+  }
+);
+
+app.post(
+  "/api/daily-challenge/submit",
+  authRequired,
+  (req, res) => {
+    const result = updateDatabase((db) => {
+      const challenge = getDailyChallenge(db);
+
+      if (!challenge) {
+        return {
+          error: "Daily challenge unavailable."
+        };
+      }
+
+      const existing = db.analytics.find(
+        (item) =>
+          item.userId === req.user.id &&
+          item.type === "daily_challenge" &&
+          item.challengeId === challenge.id
+      );
+
+      if (existing) {
+        return {
+          error: "You have already completed today's challenge."
+        };
+      }
+
+      const question = findQuestion(
+        db,
+        challenge.questionId
+      );
+
+      const correct =
+        Number(req.body.answer) ===
+        Number(question.correctAnswer);
+
+      let reward = {
+        xpAwarded: 0,
+        coinsAwarded: 0
+      };
+
+      if (correct) {
+        reward = awardXPAndCoins(
+          db,
+          req.user.id,
+          challenge.xpReward,
+          challenge.coinReward,
+          "daily_challenge"
+        );
+      }
+
+      const user = getUserById(
+        db,
+        req.user.id
+      );
+
+      ensureUserDefaults(user);
+
+      user.questionsAnswered += 1;
+
+      if (correct) {
+        user.questionsCorrect += 1;
+      }
+
+      updateUserActivity(
+        db,
+        req.user.id
+      );
+
+      db.analytics.push({
+        id: generateId("analytics"),
+        userId: req.user.id,
+        type: "daily_challenge",
+        challengeId: challenge.id,
+        correct,
+        createdAt: nowISO()
+      });
+
+      const achievements =
+        checkAchievements(
+          db,
+          req.user.id
+        );
+
+      return {
+        correct,
+        reward,
+        achievements,
+        explanation:
+          sanitizeQuestionWithAnswer(question)
+      };
+    });
+
+    if (result.error) {
+      return sendError(
+        res,
+        result.error,
+        400,
+        "DAILY_CHALLENGE_FAILED"
+      );
+    }
+
+    return sendSuccess(
+      res,
+      result,
+      "Daily challenge submitted."
+    );
+  }
+);
+
+/* ============================================================
+BATTLES
+============================================================ */
+
+app.post(
+  "/api/battles/quick",
+  authRequired,
+  (req, res) => {
+    const result = updateDatabase((db) => {
+      const questions = db.questions
+        .filter(
+          (question) =>
+            question.published !== false
+        )
+        .sort(() => Math.random() - 0.5)
+        .slice(0, 10);
+
+      const battle = {
+        id: generateId("battle"),
+        userId: req.user.id,
+        mode: "quick",
+        questionIds: questions.map(
+          (question) => question.id
+        ),
+        status: "active",
+        startedAt: nowISO()
+      };
+
+      db.battles.push(battle);
+
+      return {
+        battleId: battle.id,
+        mode: battle.mode,
+        questions: questions.map(
+          sanitizeQuestion
+        )
+      };
+    });
+
+    return sendSuccess(
+      res,
+      result,
+      "Quick Battle created.",
+      201
+    );
+  }
+);
+
+app.post(
+  "/api/battles/timed",
+  authRequired,
+  (req, res) => {
+    const durationSeconds = clampNumber(
+      req.body.durationSeconds || 60,
+      15,
+      600,
+      60
+    );
+
+    const result = updateDatabase((db) => {
+      const questions = db.questions
+        .filter(
+          (question) =>
+            question.published !== false
+        )
+        .sort(() => Math.random() - 0.5)
+        .slice(0, 20);
+
+      const battle = {
+        id: generateId("battle"),
+        userId: req.user.id,
+        mode: "timed",
+        durationSeconds,
+        questionIds: questions.map(
+          (question) => question.id
+        ),
+        status: "active",
+        startedAt: nowISO()
+      };
+
+      db.battles.push(battle);
+
+      return {
+        battleId: battle.id,
+        mode: "timed",
+        durationSeconds,
+        questions: questions.map(
+          sanitizeQuestion
+        )
+      };
+    });
+
+    return sendSuccess(
+      res,
+      result,
+      "Timed Battle created.",
+      201
+    );
+  }
+);
+
+app.post(
+  "/api/battles/:battleId/submit",
+  authRequired,
+  (req, res) => {
+    const result = updateDatabase((db) => {
+      const battle = db.battles.find(
+        (item) =>
+          item.id === req.params.battleId &&
+          item.userId === req.user.id
+      );
+
+      if (!battle) {
+        return {
+          error: "Battle not found."
+        };
+      }
+
+      if (battle.status === "completed") {
+        return {
+          error: "Battle already submitted."
+        };
+      }
+
+      const questions = battle.questionIds
+        .map((id) => findQuestion(db, id))
+        .filter(Boolean);
+
+      const score = calculateQuizScore(
+        questions,
+        req.body.answers || {}
+      );
+
+      const reward = awardXPAndCoins(
+        db,
+        req.user.id,
+        score.correct * 15,
+        Math.min(
+          WALLET_REWARD_LIMITS.battleCoins,
+          score.correct * 3
+        ),
+        "battle"
+      );
+
+      const user = getUserById(
+        db,
+        req.user.id
+      );
+
+      ensureUserDefaults(user);
+
+      user.questionsAnswered += score.total;
+      user.questionsCorrect += score.correct;
+      user.battlesPlayed += 1;
+
+      if (
+        req.body.won === true ||
+        req.body.result === "win"
+      ) {
+        user.battlesWon += 1;
+      }
+
+      updateUserActivity(
+        db,
+        req.user.id
+      );
+
+      battle.status = "completed";
+      battle.completedAt = nowISO();
+      battle.score = score;
+
+      const achievements =
+        checkAchievements(
+          db,
+          req.user.id
+        );
+
+      return {
+        score,
+        reward,
+        achievements
+      };
+    });
+
+    if (result.error) {
+      return sendError(
+        res,
+        result.error,
+        400,
+        "BATTLE_SUBMISSION_FAILED"
+      );
+    }
+
+    return sendSuccess(
+      res,
+      result,
+      "Battle submitted."
+    );
+  }
+);
+
+/* ============================================================
+LEADERBOARDS
+============================================================ */
+
+app.get(
+  "/api/leaderboards",
+  (req, res) => {
+    const db = readDatabase();
+
+    const type =
+      safeText(req.query.type || "xp", 30);
+
+    const users = db.users.map(
+      (user) => {
+        ensureUserDefaults(user);
+
+        return {
+          id: user.id,
+          username: user.username,
+          displayName: user.displayName,
+          country: user.country,
+          institution: user.institution,
+          xp: user.xp,
+          coins: user.coins,
+          level: user.level,
+          streak: user.streak,
+          questionsAnswered:
+            user.questionsAnswered,
+          quizzesCompleted:
+            user.quizzesCompleted,
+          battlesWon: user.battlesWon
+        };
+      }
+    );
+
+    if (type === "coins") {
+      users.sort(
+        (a, b) => b.coins - a.coins
+      );
+    } else if (type === "streak") {
+      users.sort(
+        (a, b) => b.streak - a.streak
+      );
+    } else if (type === "battles") {
+      users.sort(
+        (
