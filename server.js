@@ -2455,14 +2455,17 @@ app.post("/api/battles/quick", authRequired, (req, res) => {
   }
 
   const battle = {
-    id: generateId("battle"),
-    type: "quick",
-    hostId: req.user.id,
-    opponentId: null,
-    status: "waiting",
-    questionIds: questions.map((q) => q.id),
-    createdAt: nowISO()
-  };
+  id: generateId("battle"),
+  type: "quick",
+  creatorId: req.user.id,
+  opponentId: null,
+  status: "waiting",
+  questionIds: questions.map((q) => q.id),
+  creatorScore: 0,
+  opponentScore: 0,
+  submissions: {},
+  createdAt: nowISO()
+};
 
   updateDatabase((database) => {
     database.battles.push(battle);
@@ -2486,7 +2489,7 @@ app.post("/api/battles/:id/join", authRequired, (req, res) => {
     return sendError(res, 404, "Battle not found.");
   }
 
-  if (battle.hostId === req.user.id) {
+  if (battle.creatorId === req.user.id) {
     return sendError(res, 400, "You cannot join your own battle.");
   }
 
@@ -2520,7 +2523,7 @@ app.post(
     }
 
     if (
-      battle.hostId !== req.user.id &&
+      battle.creatorId !== req.user.id &&
       battle.opponentId !== req.user.id
     ) {
       return sendError(res, 403, "You are not part of this battle.");
@@ -2544,7 +2547,7 @@ app.post(
     };
 
     const participantIds = [
-      battle.hostId,
+      battle.creatorId,
       battle.opponentId
     ].filter(Boolean);
 
