@@ -1,4 +1,4 @@
-"use strict";
+"use " use strict";
 
 const express = require("express");
 const cors = require("cors");
@@ -2020,4 +2020,384 @@ app.post(
 app.get(
   "/api/v1/referrals/me",
   requireAuth,
-  (req
+  (req, res) => {
+    const db = loadDB();
+
+    const referrals = db.referrals
+      .filter(
+        referral =>
+          referral.referrerId === req.user.id ||
+          referral.referredUserId === req.user.id
+      )
+      .map(referral => {
+        const referrer = db.users.find(
+          user => user.id === referral.referrerId
+        );
+
+        const referredUser = db.users.find(
+          user => user.id === referral.referredUserId
+        );
+
+        return {
+          id: referral.id,
+          code: referral.code,
+          referrer: referrer
+            ? {
+                id: referrer.id,
+                name: referrer.name
+              }
+            : null,
+          referredUser: referredUser
+            ? {
+                id: referredUser.id,
+                name: referredUser.name
+              }
+            : null,
+          createdAt: referral.createdAt
+        };
+      });
+
+    const successfulReferrals = db.referrals.filter(
+      referral =>
+        referral.referrerId === req.user.id
+    ).length;
+
+    res.json({
+      success: true,
+      referralCode: req.user.referralCode,
+      successfulReferrals,
+      rewards: {
+        coins: successfulReferrals * 50,
+        xp: successfulReferrals * 25
+      },
+      referrals
+    });
+  }
+);
+
+app.get(
+  "/api/v1/achievements",
+  requireAuth,
+  (req, res) => {
+    const db = loadDB();
+
+    const userScores = db.scores.filter(
+      score =>
+        score.userId === req.user.id
+    );
+
+    const totalCorrect = userScores.reduce(
+      (sum, score) =>
+        sum + Number(score.correct || 0),
+      0
+    );
+
+    const totalQuizzes =
+      userScores.length;
+
+    const achievements = [
+      {
+        id: "first_quiz",
+        name: "First Quiz",
+        description: "Complete your first quiz.",
+        unlocked: totalQuizzes >= 1
+      },
+      {
+        id: "five_quizzes",
+        name: "Quiz Explorer",
+        description: "Complete five quizzes.",
+        unlocked: totalQuizzes >= 5
+      },
+      {
+        id: "ten_correct",
+        name: "Knowledge Builder",
+        description: "Answer ten questions correctly.",
+        unlocked: totalCorrect >= 10
+      },
+      {
+        id: "fifty_correct",
+        name: "Pharmacy Scholar",
+        description: "Answer fifty questions correctly.",
+        unlocked: totalCorrect >= 50
+      },
+      {
+        id: "hundred_correct",
+        name: "Pharmacy Master",
+        description: "Answer one hundred questions correctly.",
+        unlocked: totalCorrect >= 100
+      }
+    ];
+
+    res.json({
+      success: true,
+      achievements
+    });
+  }
+);
+
+app.get(
+  "/api/v1/subscriptions",
+  (req, res) => {
+    res.json({
+      success: true,
+      plans: [
+        {
+          id: "free",
+          name: "Free",
+          price: 0,
+          currency: "NGN",
+          features: [
+            "Basic pharmacy quizzes",
+            "GPA calculator",
+            "Leaderboard",
+            "Daily challenge"
+          ]
+        },
+        {
+          id: "student",
+          name: "Student Plus",
+          price: 1500,
+          currency: "NGN",
+          interval: "monthly",
+          features: [
+            "Expanded question bank",
+            "Advanced practice",
+            "Timed battles",
+            "Pharmacopoeia Hub",
+            "Language Assistant"
+          ]
+        },
+        {
+          id: "premium",
+          name: "Premium",
+          price: 3000,
+          currency: "NGN",
+          interval: "monthly",
+          features: [
+            "All Student Plus features",
+            "Premium learning content",
+            "Advanced analytics",
+            "Premium competitions"
+          ]
+        }
+      ]
+    });
+  }
+);
+
+app.get(
+  "/api/v1/subscriptions/me",
+  requireAuth,
+  (req, res) => {
+    const db = loadDB();
+
+    const subscriptions =
+      db.subscriptions
+        .filter(
+          subscription =>
+            subscription.userId === req.user.id
+        )
+        .sort(
+          (a, b) =>
+            new Date(b.createdAt) -
+            new Date(a.createdAt)
+        );
+
+    res.json({
+      success: true,
+      subscriptions
+    });
+  }
+);
+
+app.post(
+  "/api/v1/subscriptions/subscribe",
+  requireAuth,
+  (req, res) => {
+    const plan =
+      cleanText(req.body.plan, 50)
+        .toLowerCase();
+
+    const validPlans = [
+      "free",
+      "student",
+      "premium"
+    ];
+
+    if (!validPlans.includes(plan)) {
+      return res.status(400).json({
+        success: false,
+        error: "Invalid subscription plan"
+      });
+    }
+
+    const db = loadDB();
+
+    const subscription = {
+      id: id("sub"),
+      userId: req.user.id,
+      plan,
+      status: "active",
+      createdAt: now(),
+      updatedAt: now()
+    };
+
+    db.subscriptions.push(subscription);
+
+    saveDB(db);
+
+    res.status(201).json({
+      success: true,
+      subscription
+    });
+  }
+);
+
+app.get(
+  "/api/v1/stats/me",
+  requireAuth,
+  (req, res) => {
+    const db = loadDB();
+
+    const scores =
+      db.scores.filter(
+        score =>
+          score.userId === req.user.id
+      );
+
+    const totalQuizzes =
+      scores.length;
+
+    const totalCorrect =
+      scores.reduce(
+        (sum, score) =>
+          sum + Number(score.correct || 0),
+        0
+      );
+
+    const totalQuestions =
+      scores.reduce(
+        (sum, score) =>
+          sum + Number(score.total || 0),
+        0
+      );
+
+    const averageScore =
+      totalQuizzes
+        ? Math.round(
+            scores.reduce(
+              (sum, score) =>
+                sum + Number(score.score || 0),
+              0
+            ) / totalQuizzes
+          )
+        : 0;
+
+    res.json({
+      success: true,
+      stats: {
+        totalQuizzes,
+        totalCorrect,
+        totalQuestions,
+        averageScore,
+        xp: req.user.xp || 0,
+        coins: req.user.coins || 0
+      }
+    });
+  }
+);
+
+app.get(
+  "/api/v1/search",
+  (req, res) => {
+    const db = loadDB();
+
+    const query =
+      cleanText(req.query.q, 100)
+        .toLowerCase();
+
+    if (!query) {
+      return res.json({
+        success: true,
+        results: []
+      });
+    }
+
+    const results =
+      db.questions
+        .filter(question => {
+          const searchable = [
+            question.subject,
+            question.topic,
+            question.question,
+            ...(question.options || [])
+          ]
+            .join(" ")
+            .toLowerCase();
+
+          return searchable.includes(query);
+        })
+        .slice(0, 50)
+        .map(safeQuestion);
+
+    res.json({
+      success: true,
+      query,
+      results
+    });
+  }
+);
+
+app.use((req, res, next) => {
+  if (req.path.startsWith("/api/")) {
+    return res.status(404).json({
+      success: false,
+      error: "API endpoint not found"
+    });
+  }
+
+  next();
+});
+
+app.get("*", (req, res) => {
+  const indexFile =
+    path.join(PUBLIC_DIR, "index.html");
+
+  if (fs.existsSync(indexFile)) {
+    return res.sendFile(indexFile);
+  }
+
+  res.status(200).send(`
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>DENexpharm</title>
+      </head>
+      <body>
+        <h1>DENexpharm</h1>
+        <p>Backend is running successfully.</p>
+        <p>API health: <a href="/api/v1/health">/api/v1/health</a></p>
+      </body>
+    </html>
+  `);
+});
+
+app.use((err, req, res, next) => {
+  console.error("Server error:", err);
+
+  res.status(500).json({
+    success: false,
+    error: "Internal server error"
+  });
+});
+
+app.listen(PORT, () => {
+  console.log("==============================================");
+  console.log("DENexpharm server started");
+  console.log(`Version: ${APP_VERSION}`);
+  console.log(`Content year: ${CONTENT_YEAR}`);
+  console.log(`Port: ${PORT}`);
+  console.log("==============================================");
+});
