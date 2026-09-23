@@ -2855,27 +2855,6 @@ app.get("/api/bookmarks", authRequired, (req, res) => {
   return sendSuccess(res, { bookmarks });
 });
 
-app.post(
-  "/api/bookmarks/:questionId",
-  authRequired,
-  (req, res) => {
-    const db = readDatabase();
-
-    const question = findQuestion(
-      db,
-      req.params.questionId
-    );
-
-    if (!question) {
-      return sendError(res, 404, "Question not found.");
-    }
-
-    const existing = db.bookmarks.find(
-      (item) =>
-        item.userId === req.user.id &&
-        item.questionId === question.id
-    );
-
     /* ============================================================
    BOOKMARKS — CONTINUED
 ============================================================ */
