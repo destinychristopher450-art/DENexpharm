@@ -1,0 +1,30 @@
+{
+  "name": "denexpharm",
+  "version": "3.0.1",
+  "description": "DENexpharm - Full Stack Pharmacy Learning, GPA and Competition Platform",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.21.2"
+  },
+  "keywords": [
+    "pharmacy",
+    "education",
+    "quiz",
+    "competition",
+    "gpa",
+    "pharmacology",
+    "pharmacokinetics",
+    "dispensing",
+    "pharmaceutics"
+  ],
+  "author": "DENexpharm",
+  "license": "MIT"
+}
