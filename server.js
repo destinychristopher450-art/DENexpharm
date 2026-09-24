@@ -2434,595 +2434,1243 @@ app.post(
       coinsEarned: coins
     });
   }
-);
+   }
+
 /* ============================================================
-   BATTLES
-   ============================================================ */
-
-/*
-Battle structure:
-
-{
-  id,
-  type,
-  creatorId,
-  opponentId,
-  status,
-  questionIds,
-  creatorScore,
-  opponentScore,
-  submissions,
-  createdAt,
-  startedAt,
-  endsAt,
-  completedAt,
-  winnerId
-}
-*/
-
-
-/* ------------------------------------------------------------
-   CREATE QUICK BATTLE
------------------------------------------------------------- */
-
-app.post("/api/battles/quick", authRequired, (req, res) => {
-  const db = readDatabase();
-
-  const count = clampNumber(
-    req.body.count || 10,
-    1,
-    30,
-    10
-  );
-
-  const questions = selectQuestions(db, {
-    subject: req.body.subject,
-    difficulty: req.body.difficulty
-  }).slice(0, count);
-
-  if (!questions.length) {
-    return sendError(
-      res,
-      404,
-      "No battle questions available."
-    );
-  }
-
-  const battle = {
-    id: generateId("battle"),
-    type: "quick",
-
-    // The user who created the battle
-    creatorId: req.user.id,
-
-    // No opponent until somebody joins
-    opponentId: null,
-
-    // Waiting for another player
-    status: "waiting",
-
-    // Questions used in this battle
-    questionIds: questions.map((q) => q.id),
-
-    // Scores
-    creatorScore: 0,
-    opponentScore: 0,
-
-    // Each player's submission is stored here
-    submissions: {},
-
-    createdAt: nowISO(),
-
-    // These will be set when an opponent joins
-    startedAt: null,
-    endsAt: null,
-
-    completedAt: null,
-    winnerId: null
-  };
-
-  updateDatabase((database) => {
-    database.battles.push(battle);
-  });
-
-  return sendSuccess(
-    res,
-    {
-      battleId: battle.id,
-      status: battle.status,
-      creatorId: battle.creatorId,
-      questions: questions.map(sanitizeQuestion)
-    },
-    "Quick battle created.",
-    201
-  );
-});
-
-
-/* ------------------------------------------------------------
-   JOIN BATTLE
------------------------------------------------------------- */
-
-app.post("/api/battles/:id/join", authRequired, (req, res) => {
-  const db = readDatabase();
-
-  const battle = db.battles.find(
-    (item) => item.id === req.params.id
-  );
-
-  if (!battle) {
-    return sendError(
-      res,
-      404,
-      "Battle not found."
-    );
-  }
-
-  // Do not allow the creator to join their own battle
-  if (battle.creatorId === req.user.id) {
-    return sendError(
-      res,
-      400,
-      "You cannot join your own battle."
-    );
-  }
-
-  // Only waiting battles can be joined
-  if (battle.status !== "waiting") {
-    return sendError(
-      res,
-      400,
-      "This battle is no longer waiting for an opponent."
-    );
-  }
-
-  // Prevent a second opponent
-  if (battle.opponentId) {
-    return sendError(
-      res,
-      400,
-      "Battle already has an opponent."
-    );
-  }
-
-  const startedAt = nowISO();
-
-  /*
-    Battle duration.
-    Change 10 to another number of minutes if desired.
-  */
-  const endsAt = addMinutes(
-    new Date(),
-    10
-  );
-
-  battle.opponentId = req.user.id;
-  battle.status = "active";
-  battle.startedAt = startedAt;
-  battle.endsAt = endsAt;
-
-  writeDatabase(db);
-
-  return sendSuccess(
-    res,
-    {
-      battle: {
-        id: battle.id,
-        type: battle.type,
-        creatorId: battle.creatorId,
-        opponentId: battle.opponentId,
-        status: battle.status,
-        questionIds: battle.questionIds,
-        creatorScore: battle.creatorScore,
-        opponentScore: battle.opponentScore,
-        startedAt: battle.startedAt,
-        endsAt: battle.endsAt,
-        createdAt: battle.createdAt
-      }
-    },
-    "Battle joined successfully."
-  );
-});
-
-
-/* ------------------------------------------------------------
-   GET BATTLE STATUS
------------------------------------------------------------- */
-
-app.get("/api/battles/:id", authRequired, (req, res) => {
-  const db = readDatabase();
-
-  const battle = db.battles.find(
-    (item) => item.id === req.params.id
-  );
-
-  if (!battle) {
-    return sendError(
-      res,
-      404,
-      "Battle not found."
-    );
-  }
-
-  /*
-    Only the creator or opponent can view the battle.
-  */
-  const isParticipant =
-    battle.creatorId === req.user.id ||
-    battle.opponentId === req.user.id;
-
-  if (!isParticipant) {
-    return sendError(
-      res,
-      403,
-      "You are not a participant in this battle."
-    );
-  }
-
-  /*
-    Automatically expire an active battle
-    when its timer has finished.
-  */
-  if (
-    battle.status === "active" &&
-    battle.endsAt &&
-    new Date(battle.endsAt).getTime() <= Date.now()
-  ) {
-    battle.status = "expired";
-    battle.completedAt = nowISO();
-
-    writeDatabase(db);
-  }
-
-  const responseBattle = {
-    id: battle.id,
-    type: battle.type,
-    status: battle.status,
-
-    creatorId: battle.creatorId,
-    opponentId: battle.opponentId,
-
-    questionIds: battle.questionIds,
-
-    creatorScore: battle.creatorScore || 0,
-    opponentScore: battle.opponentScore || 0,
-
-    startedAt: battle.startedAt || null,
-    endsAt: battle.endsAt || null,
-    completedAt: battle.completedAt || null,
-
-    winnerId: battle.winnerId || null,
-
-    createdAt: battle.createdAt
-  };
-
-  return sendSuccess(
-    res,
-    {
-      battle: responseBattle
-    },
-    "Battle status retrieved."
-  );
-});
-
-
-/* ------------------------------------------------------------
-   SUBMIT BATTLE
------------------------------------------------------------- */
-
-app.post("/api/battles/:id/submit", authRequired, (req, res) => {
-  const db = readDatabase();
-
-  const battle = db.battles.find(
-    (item) => item.id === req.params.id
-  );
-
-  if (!battle) {
-    return sendError(
-      res,
-      404,
-      "Battle not found."
-    );
-  }
-
-  /*
-    Only creator or opponent can submit.
-  */
-  const isParticipant =
-    battle.creatorId === req.user.id ||
-    battle.opponentId === req.user.id;
-
-  if (!isParticipant) {
-    return sendError(
-      res,
-      403,
-      "You are not part of this battle."
-    );
-  }
-
-  /*
-    Battle must actually be active.
-  */
-  if (battle.status !== "active") {
-    return sendError(
-      res,
-      400,
-      `Battle is ${battle.status}. Submissions are not accepted.`
-    );
-  }
-
-  /*
-    Check whether the timer has expired.
-  */
-  if (
-    battle.endsAt &&
-    new Date(battle.endsAt).getTime() <= Date.now()
-  ) {
-    battle.status = "expired";
-    battle.completedAt = nowISO();
-
-    writeDatabase(db);
-
-    return sendError(
-      res,
-      400,
-      "Battle time has expired."
-    );
-  }
-
-  /*
-    Prevent the same player from submitting twice.
-  */
-  battle.submissions =
-    battle.submissions || {};
-
-  if (battle.submissions[req.user.id]) {
-    return sendError(
-      res,
-      400,
-      "You have already submitted this battle."
-    );
-  }
-
-  const answers = Array.isArray(req.body.answers)
-    ? req.body.answers
-    : [];
-
-  /*
-    Get the actual questions.
-  */
-  const questions = battle.questionIds
-    .map((id) => findQuestion(db, id))
-    .filter(Boolean);
-
-  if (!questions.length) {
-    return sendError(
-      res,
-      400,
-      "Battle questions could not be found."
-    );
-  }
-
-  /*
-    Calculate player's score.
-  */
-  const score = calculateQuizScore(
-    questions,
-    answers
-  );
-
-  /*
-    Store submission.
-  */
-  battle.submissions[req.user.id] = {
-    score,
-    submittedAt: nowISO()
-  };
-
-  /*
-    Store the score in the correct field.
-  */
-  if (req.user.id === battle.creatorId) {
-    battle.creatorScore = score.correct;
-  } else if (req.user.id === battle.opponentId) {
-    battle.opponentScore = score.correct;
-  }
-
-  /*
-    Check whether both players have submitted.
-  */
-  const participantIds = [
-    battle.creatorId,
-    battle.opponentId
-  ].filter(Boolean);
-
-  const bothSubmitted =
-    participantIds.length === 2 &&
-    participantIds.every(
-      (id) => battle.submissions[id]
-    );
-
-  let winnerId = battle.winnerId || null;
-
-  if (bothSubmitted) {
-    const creatorSubmission =
-      battle.submissions[battle.creatorId];
-
-    const opponentSubmission =
-      battle.submissions[battle.opponentId];
+ * BATTLE CREATION
+ * ============================================================ */
+
+app.post(
+  "/api/battles/quick",
+  authRequired,
+  (req, res) => {
+    const db = readDatabase();
+
+    ensureUserDefaults(req.user);
 
     /*
-      Determine winner.
-      A tie leaves winnerId as null.
-    */
-    if (
-      creatorSubmission.score.correct >
-      opponentSubmission.score.correct
-    ) {
-      winnerId = battle.creatorId;
-    } else if (
-      opponentSubmission.score.correct >
-      creatorSubmission.score.correct
-    ) {
-      winnerId = battle.opponentId;
-    } else {
-      winnerId = null;
+     * Number of questions.
+     *
+     * If the frontend sends questionCount,
+     * use it.
+     *
+     * Otherwise default to 10.
+     */
+    const requestedCount =
+      Number(req.body.questionCount) || 10;
+
+    const questionCount = Math.min(
+      Math.max(requestedCount, 1),
+      50
+    );
+
+    /*
+     * Get available questions.
+     */
+    let availableQuestions =
+      Array.isArray(db.questions)
+        ? [...db.questions]
+        : [];
+
+    if (!availableQuestions.length) {
+      return sendError(
+        res,
+        400,
+        "No questions are available for battle."
+      );
     }
 
-    battle.winnerId = winnerId;
-    battle.status = "completed";
-    battle.completedAt = nowISO();
+    /*
+     * Shuffle questions.
+     */
+    availableQuestions.sort(
+      () => Math.random() - 0.5
+    );
 
     /*
-      Give battle rewards.
-    */
-    participantIds.forEach((id) => {
-      const user = getUserById(db, id);
-
-      if (!user) {
-        return;
-      }
-
-      ensureUserDefaults(user);
-
-      user.battlesPlayed += 1;
-
-      if (winnerId === id) {
-        user.battlesWon += 1;
-        user.xp += 100;
-        user.coins += 25;
-      } else {
-        user.xp += 25;
-        user.coins += 5;
-      }
-
-      user.level = calculateLevel(
-        user.xp
+     * Select requested number of questions.
+     */
+    const questions =
+      availableQuestions.slice(
+        0,
+        questionCount
       );
-    });
+
+    if (!questions.length) {
+      return sendError(
+        res,
+        400,
+        "Could not create battle questions."
+      );
+    }
+
+    /*
+     * Create battle.
+     */
+    const battle = {
+      id: generateId("battle"),
+
+      type: "quick",
+
+      /*
+       * Creator is the first participant.
+       */
+      creatorId: req.user.id,
+
+      /*
+       * No opponent yet.
+       */
+      opponentId: null,
+
+      /*
+       * Battle waits until somebody joins.
+       */
+      status: "waiting",
+
+      /*
+       * Questions used by this battle.
+       */
+      questionIds: questions.map(
+        (question) => question.id
+      ),
+
+      /*
+       * Scores.
+       */
+      creatorScore: 0,
+      opponentScore: 0,
+
+      /*
+       * Individual submissions.
+       *
+       * Example:
+       *
+       * submissions: {
+       *   user123: {
+       *     score: {...},
+       *     submittedAt: "..."
+       *   }
+       * }
+       */
+      submissions: {},
+
+      /*
+       * Timestamps.
+       */
+      createdAt: nowISO(),
+
+      startedAt: null,
+
+      endsAt: null,
+
+      completedAt: null,
+
+      /*
+       * Winner.
+       *
+       * null = nobody has won yet
+       * creatorId = creator won
+       * opponentId = opponent won
+       */
+      winnerId: null
+    };
+
+    /*
+     * Save battle.
+     */
+    db.battles =
+      Array.isArray(db.battles)
+        ? db.battles
+        : [];
+
+    db.battles.push(battle);
+
+    writeDatabase(db);
+
+    /*
+     * Audit log.
+     */
+    createAuditLog(
+      req.user.id,
+      "battle_created",
+      {
+        battleId: battle.id,
+        type: battle.type,
+        questionCount:
+          battle.questionIds.length
+      }
+    );
+
+    return sendSuccess(
+      res,
+      {
+        battle: {
+          id: battle.id,
+
+          type: battle.type,
+
+          creatorId:
+            battle.creatorId,
+
+          opponentId:
+            battle.opponentId,
+
+          status:
+            battle.status,
+
+          questionIds:
+            battle.questionIds,
+
+          creatorScore:
+            battle.creatorScore,
+
+          opponentScore:
+            battle.opponentScore,
+
+          startedAt:
+            battle.startedAt,
+
+          endsAt:
+            battle.endsAt,
+
+          completedAt:
+            battle.completedAt,
+
+          winnerId:
+            battle.winnerId,
+
+          createdAt:
+            battle.createdAt
+        }
+      },
+      "Quick battle created successfully."
+    );
   }
+);
 
-  /*
-    Save everything.
-  */
-  writeDatabase(db);
 
-  /*
-    Return result to the player.
-  */
-  return sendSuccess(
-    res,
-    {
-      battleId: battle.id,
-      status: battle.status,
+/* ============================================================
+ * JOIN BATTLE
+ * ============================================================ */
 
-      score,
+app.post(
+  "/api/battles/:id/join",
+  authRequired,
+  (req, res) => {
+    const db = readDatabase();
+
+    const battle =
+      db.battles.find(
+        (item) =>
+          item.id === req.params.id
+      );
+
+    if (!battle) {
+      return sendError(
+        res,
+        404,
+        "Battle not found."
+      );
+    }
+
+    /*
+     * IMPORTANT:
+     *
+     * The creator is already participating.
+     *
+     * They must NOT join their own battle.
+     */
+    if (
+      battle.creatorId ===
+      req.user.id
+    ) {
+      return sendError(
+        res,
+        400,
+        "You cannot join your own battle. You are already the creator."
+      );
+    }
+
+    /*
+     * Only waiting battles can be joined.
+     */
+    if (
+      battle.status !== "waiting"
+    ) {
+      return sendError(
+        res,
+        400,
+        "This battle is no longer waiting for an opponent."
+      );
+    }
+
+    /*
+     * Prevent second opponent.
+     */
+    if (battle.opponentId) {
+      return sendError(
+        res,
+        400,
+        "Battle already has an opponent."
+      );
+    }
+
+    /*
+     * Prevent malformed battles.
+     */
+    if (!battle.creatorId) {
+      return sendError(
+        res,
+        400,
+        "Battle creator is missing."
+      );
+    }
+
+    /*
+     * Start battle.
+     */
+    const startedAt =
+      nowISO();
+
+    /*
+     * Battle duration.
+     *
+     * Currently 10 minutes.
+     */
+    const endsAt =
+      addMinutes(
+        new Date(),
+        10
+      );
+
+    battle.opponentId =
+      req.user.id;
+
+    battle.status =
+      "active";
+
+    battle.startedAt =
+      startedAt;
+
+    battle.endsAt =
+      endsAt;
+
+    /*
+     * Ensure score fields exist.
+     */
+    battle.creatorScore =
+      Number(
+        battle.creatorScore || 0
+      );
+
+    battle.opponentScore =
+      Number(
+        battle.opponentScore || 0
+      );
+
+    /*
+     * Ensure submissions object exists.
+     */
+    battle.submissions =
+      battle.submissions || {};
+
+    writeDatabase(db);
+
+    createAuditLog(
+      req.user.id,
+      "battle_joined",
+      {
+        battleId:
+          battle.id,
+
+        creatorId:
+          battle.creatorId
+      }
+    );
+
+    return sendSuccess(
+      res,
+      {
+        battle: {
+          id:
+            battle.id,
+
+          type:
+            battle.type,
+
+          creatorId:
+            battle.creatorId,
+
+          opponentId:
+            battle.opponentId,
+
+          status:
+            battle.status,
+
+          questionIds:
+            battle.questionIds,
+
+          creatorScore:
+            battle.creatorScore,
+
+          opponentScore:
+            battle.opponentScore,
+
+          startedAt:
+            battle.startedAt,
+
+          endsAt:
+            battle.endsAt,
+
+          createdAt:
+            battle.createdAt
+        }
+      },
+      "Battle joined successfully."
+    );
+  }
+);
+
+
+/* ============================================================
+ * BATTLE STATUS
+ * ============================================================ */
+
+app.get(
+  "/api/battles/:id",
+  authRequired,
+  (req, res) => {
+    const db = readDatabase();
+
+    const battle =
+      db.battles.find(
+        (item) =>
+          item.id === req.params.id
+      );
+
+    if (!battle) {
+      return sendError(
+        res,
+        404,
+        "Battle not found."
+      );
+    }
+
+    /*
+     * Only participants can view
+     * the battle.
+     */
+    const isParticipant =
+      battle.creatorId ===
+        req.user.id ||
+      battle.opponentId ===
+        req.user.id;
+
+    if (!isParticipant) {
+      return sendError(
+        res,
+        403,
+        "You are not a participant in this battle."
+      );
+    }
+
+    /*
+     * Ensure legacy/missing fields
+     * do not break the response.
+     */
+    battle.questionIds =
+      Array.isArray(
+        battle.questionIds
+      )
+        ? battle.questionIds
+        : [];
+
+    battle.creatorScore =
+      Number(
+        battle.creatorScore || 0
+      );
+
+    battle.opponentScore =
+      Number(
+        battle.opponentScore || 0
+      );
+
+    battle.submissions =
+      battle.submissions || {};
+
+    /*
+     * Automatically expire an active
+     * battle when the timer finishes.
+     */
+    if (
+      battle.status === "active" &&
+      battle.endsAt &&
+      new Date(
+        battle.endsAt
+      ).getTime() <= Date.now()
+    ) {
+      battle.status =
+        "expired";
+
+      battle.completedAt =
+        nowISO();
+
+      writeDatabase(db);
+    }
+
+    const responseBattle = {
+      id:
+        battle.id,
+
+      type:
+        battle.type,
+
+      status:
+        battle.status,
+
+      creatorId:
+        battle.creatorId,
+
+      opponentId:
+        battle.opponentId || null,
+
+      questionIds:
+        battle.questionIds,
 
       creatorScore:
-        battle.creatorScore || 0,
+        battle.creatorScore,
 
       opponentScore:
-        battle.opponentScore || 0,
+        battle.opponentScore,
+
+      startedAt:
+        battle.startedAt || null,
+
+      endsAt:
+        battle.endsAt || null,
+
+      completedAt:
+        battle.completedAt || null,
 
       winnerId:
         battle.winnerId || null,
 
-      completedAt:
-        battle.completedAt || null
-    },
-    bothSubmitted
-      ? "Battle completed."
-      : "Battle submission recorded."
-  );
-});
+      createdAt:
+        battle.createdAt
+    };
 
-
-/* ------------------------------------------------------------
-   EXPIRE BATTLE
------------------------------------------------------------- */
-
-app.post("/api/battles/:id/expire", authRequired, (req, res) => {
-  const db = readDatabase();
-
-  const battle = db.battles.find(
-    (item) => item.id === req.params.id
-  );
-
-  if (!battle) {
-    return sendError(
+    return sendSuccess(
       res,
-      404,
-      "Battle not found."
+      {
+        battle:
+          responseBattle
+      },
+      "Battle status retrieved."
     );
   }
+);
 
-  /*
-    Only participants can expire/check the battle.
-  */
-  const isParticipant =
-    battle.creatorId === req.user.id ||
-    battle.opponentId === req.user.id;
 
-  if (!isParticipant) {
-    return sendError(
+/* ============================================================
+ * SUBMIT BATTLE
+ * ============================================================ */
+
+app.post(
+  "/api/battles/:id/submit",
+  authRequired,
+  (req, res) => {
+    const db = readDatabase();
+
+    const battle =
+      db.battles.find(
+        (item) =>
+          item.id === req.params.id
+      );
+
+    if (!battle) {
+      return sendError(
+        res,
+        404,
+        "Battle not found."
+      );
+    }
+
+    /*
+     * Only creator or opponent
+     * can submit.
+     */
+    const isParticipant =
+      battle.creatorId ===
+        req.user.id ||
+      battle.opponentId ===
+        req.user.id;
+
+    if (!isParticipant) {
+      return sendError(
+        res,
+        403,
+        "You are not part of this battle."
+      );
+    }
+
+    /*
+     * Battle must be active.
+     */
+    if (
+      battle.status !== "active"
+    ) {
+      return sendError(
+        res,
+        400,
+        `Battle is ${battle.status}. Submissions are not accepted.`
+      );
+    }
+
+    /*
+     * Check timer.
+     */
+    if (
+      battle.endsAt &&
+      new Date(
+        battle.endsAt
+      ).getTime() <= Date.now()
+    ) {
+      battle.status =
+        "expired";
+
+      battle.completedAt =
+        nowISO();
+
+      writeDatabase(db);
+
+      return sendError(
+        res,
+        400,
+        "Battle time has expired."
+      );
+    }
+
+    /*
+     * Ensure submissions exists.
+     */
+    battle.submissions =
+      battle.submissions || {};
+
+    /*
+     * Prevent duplicate submission.
+     */
+    if (
+      battle.submissions[
+        req.user.id
+      ]
+    ) {
+      return sendError(
+        res,
+        400,
+        "You have already submitted this battle."
+      );
+    }
+
+    /*
+     * Validate answers.
+     */
+    const answers =
+      Array.isArray(
+        req.body.answers
+      )
+        ? req.body.answers
+        : [];
+
+    /*
+     * Retrieve questions.
+     */
+    const questions =
+      (
+        battle.questionIds || []
+      )
+        .map(
+          (id) =>
+            findQuestion(
+              db,
+              id
+            )
+        )
+        .filter(Boolean);
+
+    if (!questions.length) {
+      return sendError(
+        res,
+        400,
+        "Battle questions could not be found."
+      );
+    }
+
+    /*
+     * Calculate score.
+     */
+    const score =
+      calculateQuizScore(
+        questions,
+        answers
+      );
+
+    /*
+     * Store submission.
+     */
+    battle.submissions[
+      req.user.id
+    ] = {
+      score,
+
+      submittedAt:
+        nowISO()
+    };
+
+    /*
+     * Store correct score in
+     * the correct player's field.
+     */
+    if (
+      req.user.id ===
+      battle.creatorId
+    ) {
+      battle.creatorScore =
+        Number(
+          score.correct || 0
+        );
+    } else if (
+      req.user.id ===
+      battle.opponentId
+    ) {
+      battle.opponentScore =
+        Number(
+          score.correct || 0
+        );
+    }
+
+    /*
+     * Get both players.
+     */
+    const participantIds = [
+      battle.creatorId,
+      battle.opponentId
+    ].filter(Boolean);
+
+    /*
+     * Check whether both submitted.
+     */
+    const bothSubmitted =
+      participantIds.length === 2 &&
+      participantIds.every(
+        (id) =>
+          battle.submissions[id]
+      );
+
+    let winnerId =
+      battle.winnerId || null;
+
+
+    /* ==========================================================
+     * BOTH PLAYERS HAVE SUBMITTED
+     * ========================================================== */
+
+    if (bothSubmitted) {
+      const creatorSubmission =
+        battle.submissions[
+          battle.creatorId
+        ];
+
+      const opponentSubmission =
+        battle.submissions[
+          battle.opponentId
+        ];
+
+      /*
+       * Determine winner.
+       */
+      if (
+        creatorSubmission.score.correct >
+        opponentSubmission.score.correct
+      ) {
+        winnerId =
+          battle.creatorId;
+      } else if (
+        opponentSubmission.score.correct >
+        creatorSubmission.score.correct
+      ) {
+        winnerId =
+          battle.opponentId;
+      } else {
+        /*
+         * Tie.
+         */
+        winnerId = null;
+      }
+
+      battle.winnerId =
+        winnerId;
+
+      battle.status =
+        "completed";
+
+      battle.completedAt =
+        nowISO();
+
+
+      /* ========================================================
+       * REWARDS
+       * ======================================================== */
+
+      /*
+       * Ensure wallet arrays exist.
+       */
+      db.wallets =
+        Array.isArray(
+          db.wallets
+        )
+          ? db.wallets
+          : [];
+
+      db.walletTransactions =
+        Array.isArray(
+          db.walletTransactions
+        )
+          ? db.walletTransactions
+          : [];
+
+      participantIds.forEach(
+        (id) => {
+          const user =
+            getUserById(
+              db,
+              id
+            );
+
+          if (!user) {
+            return;
+          }
+
+          ensureUserDefaults(
+            user
+          );
+
+          /*
+           * Every completed battle
+           * counts as played.
+           */
+          user.battlesPlayed =
+            Number(
+              user.battlesPlayed || 0
+            ) + 1;
+
+          let xpReward = 25;
+
+          let coinReward = 5;
+
+          let reason =
+            "Battle participation reward";
+
+
+          /*
+           * Winner reward.
+           */
+          if (
+            winnerId === id
+          ) {
+            user.battlesWon =
+              Number(
+                user.battlesWon || 0
+              ) + 1;
+
+            xpReward = 100;
+
+            coinReward = 25;
+
+            reason =
+              "Battle winner reward";
+          }
+
+          /*
+           * XP.
+           */
+          user.xp =
+            Number(
+              user.xp || 0
+            ) + xpReward;
+
+          /*
+           * Coins.
+           */
+          user.coins =
+            Number(
+              user.coins || 0
+            ) + coinReward;
+
+          /*
+           * Recalculate level.
+           */
+          user.level =
+            calculateLevel(
+              user.xp
+            );
+
+
+          /* ======================================================
+           * WALLET SYNCHRONIZATION
+           * ====================================================== */
+
+          const wallet =
+            db.wallets.find(
+              (item) =>
+                item.userId === id
+            );
+
+          if (wallet) {
+            /*
+             * Keep wallet balance equal
+             * to user's coin balance.
+             */
+            wallet.balance =
+              user.coins;
+
+            wallet.lifetimeEarned =
+              Number(
+                wallet.lifetimeEarned || 0
+              ) + coinReward;
+
+            wallet.updatedAt =
+              nowISO();
+          } else {
+            /*
+             * If the wallet does not exist,
+             * create one.
+             */
+            db.wallets.push({
+              id:
+                generateId(
+                  "wallet"
+                ),
+
+              userId:
+                id,
+
+              balance:
+                user.coins,
+
+              lifetimeEarned:
+                coinReward,
+
+              lifetimeSpent:
+                0,
+
+              createdAt:
+                nowISO(),
+
+              updatedAt:
+                nowISO()
+            });
+          }
+
+
+          /* ======================================================
+           * WALLET TRANSACTION
+           * ====================================================== */
+
+          db.walletTransactions.push({
+            id:
+              generateId(
+                "wallet_tx"
+              ),
+
+            userId:
+              id,
+
+            type:
+              "credit",
+
+            amount:
+              coinReward,
+
+            reason,
+
+            createdAt:
+              nowISO()
+          });
+        }
+      );
+
+
+      /* ========================================================
+       * BATTLE COMPLETED AUDIT
+       * ======================================================== */
+
+      createAuditLog(
+        req.user.id,
+        "battle_completed",
+        {
+          battleId:
+            battle.id,
+
+          winnerId:
+            winnerId,
+
+          creatorScore:
+            battle.creatorScore,
+
+          opponentScore:
+            battle.opponentScore
+        }
+      );
+    }
+
+
+    /* ==========================================================
+     * SAVE DATABASE
+     * ========================================================== */
+
+    writeDatabase(db);
+
+
+    /* ==========================================================
+     * RESPONSE
+     * ========================================================== */
+
+    return sendSuccess(
       res,
-      403,
-      "You are not a participant in this battle."
+      {
+        battleId:
+          battle.id,
+
+        status:
+          battle.status,
+
+        score,
+
+        creatorScore:
+          battle.creatorScore || 0,
+
+        opponentScore:
+          battle.opponentScore || 0,
+
+        winnerId:
+          battle.winnerId || null,
+
+        completedAt:
+          battle.completedAt || null
+      },
+
+      bothSubmitted
+        ? "Battle completed."
+        : "Battle submission recorded."
     );
   }
+);
 
-  /*
-    If already completed or expired,
-    simply return the current battle.
-  */
-  if (
-    battle.status !== "active"
-  ) {
+
+/* ============================================================
+ * EXPIRE BATTLE
+ * ============================================================ */
+
+app.post(
+  "/api/battles/:id/expire",
+  authRequired,
+  (req, res) => {
+    const db = readDatabase();
+
+    const battle =
+      db.battles.find(
+        (item) =>
+          item.id === req.params.id
+      );
+
+    if (!battle) {
+      return sendError(
+        res,
+        404,
+        "Battle not found."
+      );
+    }
+
+    /*
+     * Only participants can
+     * expire/check the battle.
+     */
+    const isParticipant =
+      battle.creatorId ===
+        req.user.id ||
+      battle.opponentId ===
+        req.user.id;
+
+    if (!isParticipant) {
+      return sendError(
+        res,
+        403,
+        "You are not a participant in this battle."
+      );
+    }
+
+    /*
+     * If already completed or expired,
+     * return current state.
+     */
+    if (
+      battle.status !== "active"
+    ) {
+      return sendSuccess(
+        res,
+        {
+          battle
+        },
+        "Battle is not active."
+      );
+    }
+
+    /*
+     * Timer must actually be finished.
+     */
+    if (
+      battle.endsAt &&
+      new Date(
+        battle.endsAt
+      ).getTime() > Date.now()
+    ) {
+      return sendError(
+        res,
+        400,
+        "Battle has not expired yet."
+      );
+    }
+
+    /*
+     * Make sure submissions exists.
+     */
+    battle.submissions =
+      battle.submissions || {};
+
+    /*
+     * Determine participants.
+     */
+    const participantIds = [
+      battle.creatorId,
+      battle.opponentId
+    ].filter(Boolean);
+
+    /*
+     * Check who submitted before
+     * the timer expired.
+     */
+    const creatorSubmitted =
+      Boolean(
+        battle.submissions[
+          battle.creatorId
+        ]
+      );
+
+    const opponentSubmitted =
+      Boolean(
+        battle.opponentId &&
+        battle.submissions[
+          battle.opponentId
+        ]
+      );
+
+
+    /* ==========================================================
+     * OPTIONAL DEFAULT WINNER LOGIC
+     *
+     * If exactly one player submitted,
+     * that player wins.
+     *
+     * If nobody submitted, it is simply
+     * expired with no winner.
+     * ========================================================== */
+
+    if (
+      creatorSubmitted &&
+      !opponentSubmitted
+    ) {
+      battle.winnerId =
+        battle.creatorId;
+    } else if (
+      opponentSubmitted &&
+      !creatorSubmitted
+    ) {
+      battle.winnerId =
+        battle.opponentId;
+    } else if (
+      creatorSubmitted &&
+      opponentSubmitted
+    ) {
+      /*
+       * Both submitted before expiration.
+       *
+       * Compare their scores.
+       */
+      const creatorScore =
+        Number(
+          battle.submissions[
+            battle.creatorId
+          ].score?.correct || 0
+        );
+
+      const opponentScore =
+        Number(
+          battle.submissions[
+            battle.opponentId
+          ].score?.correct || 0
+        );
+
+      if (
+        creatorScore >
+        opponentScore
+      ) {
+        battle.winnerId =
+          battle.creatorId;
+      } else if (
+        opponentScore >
+        creatorScore
+      ) {
+        battle.winnerId =
+          battle.opponentId;
+      } else {
+        battle.winnerId =
+          null;
+      }
+    } else {
+      battle.winnerId =
+        null;
+    }
+
+    /*
+     * Mark expired.
+     */
+    battle.status =
+      "expired";
+
+    battle.completedAt =
+      nowISO();
+
+    writeDatabase(db);
+
+    createAuditLog(
+      req.user.id,
+      "battle_expired",
+      {
+        battleId:
+          battle.id,
+
+        winnerId:
+          battle.winnerId || null
+      }
+    );
+
     return sendSuccess(
       res,
       {
         battle
       },
-      "Battle is not active."
+      "Battle expired."
     );
-  }
-
-  /*
-    Do not allow premature expiration.
-  */
-  if (
-    battle.endsAt &&
-    new Date(battle.endsAt).getTime() > Date.now()
-  ) {
-    return sendError(
-      res,
-      400,
-      "Battle has not expired yet."
-    );
-  }
-
-  battle.status = "expired";
-  battle.completedAt = nowISO();
-
-  writeDatabase(db);
-
-  createAuditLog(
-    req.user.id,
-    "battle_expired",
-    {
-      battleId: battle.id
-    }
-  );
-
-  return sendSuccess(
-    res,
-    {
-      battle
-    },
-    "Battle expired."
-  );
-});winnerId: battle.winnerId || null
-    });
   }
 );
 
