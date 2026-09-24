@@ -2433,7 +2433,6 @@ app.post(
   { score, xpEarned: xp, coinsEarned: coins }
    );
     });
-  }
 
 /* ============================================================
  * BATTLE CREATION
@@ -2728,67 +2727,54 @@ app.post(
     /*
      * Start battle.
      */
-    const startedAt =
-      nowISO();
+    const startedAt = nowISO();
 
-    /*
-     * Battle duration.
-     *
-     * Currently 10 minutes.
-     */
-    const endsAt =
-      addMinutes(date, minutes) {
-  const result = new Date(date);
-  result.setMinutes(result.getMinutes() + Number(minutes || 0));
-  return result.toISOString();
-      }
-      );
+/*
+ * Battle duration.
+ * Currently 10 minutes.
+ */
+const durationMinutes = 10;
+const endsAt = addMinutes(
+  new Date(),
+  durationMinutes
+);
 
-    battle.opponentId =
-      req.user.id;
+battle.opponentId = req.user.id;
 
-    battle.status =
-      "active";
+battle.status = "active";
 
-    battle.startedAt =
-      startedAt;
+battle.startedAt = startedAt;
 
-    battle.endsAt =
-      endsAt;
+battle.endsAt = endsAt;
 
-    /*
-     * Ensure score fields exist.
-     */
-    battle.creatorScore =
-      Number(
-        battle.creatorScore || 0
-      );
+/*
+ * Ensure score fields exist.
+ */
+battle.creatorScore = Number(
+  battle.creatorScore || 0
+);
 
-    battle.opponentScore =
-      Number(
-        battle.opponentScore || 0
-      );
+battle.opponentScore = Number(
+  battle.opponentScore || 0
+);
 
-    /*
-     * Ensure submissions object exists.
-     */
-    battle.submissions =
-      battle.submissions || {};
+/*
+ * Ensure submissions object exists.
+ */
+battle.submissions =
+  battle.submissions || {};
 
-    writeDatabase(db);
+writeDatabase(db);
 
-    createAuditLog(
-      req.user.id,
-      "battle_joined",
-      {
-        battleId:
-          battle.id,
-
-        creatorId:
-          battle.creatorId
-      }
-    );
-
+createAuditLog(
+  req.user.id,
+  "battle_joined",
+  {
+    battleId: battle.id,
+    opponentId: req.user.id
+  }
+);
+   
     return sendSuccess(
       res,
       {
