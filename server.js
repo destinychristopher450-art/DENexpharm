@@ -2428,13 +2428,12 @@ app.post(
     writeDatabase(db);
     updateUserActivity(user.id);
 
-    return sendSuccess(res, {
-      score,
-      xpEarned: xp,
-      coinsEarned: coins
+    return sendSuccess(
+  res,
+  { score, xpEarned: xp, coinsEarned: coins }
+   );
     });
   }
-   }
 
 /* ============================================================
  * BATTLE CREATION
@@ -2738,9 +2737,11 @@ app.post(
      * Currently 10 minutes.
      */
     const endsAt =
-      addMinutes(
-        new Date(),
-        10
+      addMinutes(date, minutes) {
+  const result = new Date(date);
+  result.setMinutes(result.getMinutes() + Number(minutes || 0));
+  return result.toISOString();
+      }
       );
 
     battle.opponentId =
