@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="DENexpharm - Pharmacy Learning and Competition Platform">
+  <meta name="theme-color" content="#146c43">
   <title>DENexpharm | Pharmacy Learning</title>
 
   <style>
@@ -20,17 +21,27 @@
       line-height: 1.5;
     }
 
+    button,
+    input,
+    select {
+      font: inherit;
+    }
+
+    button {
+      cursor: pointer;
+    }
+
     header {
-      background: #ffffff;
+      background: #fff;
       border-bottom: 1px solid #e5e7eb;
-      padding: 15px 20px;
+      padding: 14px 18px;
       position: sticky;
       top: 0;
-      z-index: 10;
+      z-index: 50;
     }
 
     .nav {
-      max-width: 1100px;
+      max-width: 1150px;
       margin: auto;
       display: flex;
       align-items: center;
@@ -39,22 +50,23 @@
     }
 
     .logo {
-      font-size: 24px;
+      font-size: 25px;
       font-weight: 800;
       color: #146c43;
     }
 
     .nav-buttons {
       display: flex;
+      align-items: center;
       gap: 8px;
+      flex-wrap: wrap;
     }
 
     button {
       border: none;
-      border-radius: 8px;
+      border-radius: 9px;
       padding: 10px 15px;
-      cursor: pointer;
-      font-weight: 600;
+      font-weight: 700;
     }
 
     .btn-primary {
@@ -62,32 +74,47 @@
       color: white;
     }
 
+    .btn-primary:hover {
+      background: #0f5635;
+    }
+
     .btn-secondary {
       background: #e9f5ee;
       color: #146c43;
     }
 
+    .btn-danger {
+      background: #fee2e2;
+      color: #b42318;
+    }
+
+    .btn-dark {
+      background: #172033;
+      color: white;
+    }
+
     main {
-      max-width: 1100px;
+      max-width: 1150px;
       margin: auto;
-      padding: 30px 20px 60px;
+      padding: 25px 18px 60px;
     }
 
     .hero {
       background: linear-gradient(135deg, #146c43, #198754);
       color: white;
-      border-radius: 18px;
+      border-radius: 20px;
       padding: 45px 30px;
       margin-bottom: 25px;
     }
 
     .hero h1 {
-      font-size: clamp(32px, 6vw, 55px);
-      margin-bottom: 12px;
+      font-size: clamp(32px, 6vw, 56px);
+      line-height: 1.08;
+      margin-bottom: 14px;
     }
 
     .hero p {
-      max-width: 700px;
+      max-width: 750px;
       font-size: 17px;
       margin-bottom: 22px;
     }
@@ -103,9 +130,18 @@
       color: #146c43;
     }
 
+    .status {
+      display: inline-block;
+      margin-top: 18px;
+      padding: 6px 11px;
+      border-radius: 20px;
+      background: rgba(255,255,255,.16);
+      font-size: 13px;
+    }
+
     .section-title {
       margin: 30px 0 15px;
-      font-size: 24px;
+      font-size: 25px;
     }
 
     .grid {
@@ -117,19 +153,73 @@
     .card {
       background: white;
       padding: 20px;
-      border-radius: 14px;
+      border-radius: 15px;
       border: 1px solid #e5e7eb;
-      box-shadow: 0 3px 12px rgba(0,0,0,0.04);
+      box-shadow: 0 3px 12px rgba(0,0,0,.04);
     }
 
     .card h3 {
-      margin-bottom: 8px;
       color: #146c43;
+      margin-bottom: 7px;
     }
 
     .card p {
       color: #5d6675;
       font-size: 14px;
+    }
+
+    .dashboard {
+      display: none;
+      margin-bottom: 25px;
+    }
+
+    .dashboard.show {
+      display: block;
+    }
+
+    .profile-card {
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 16px;
+      padding: 20px;
+    }
+
+    .profile-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 15px;
+      flex-wrap: wrap;
+    }
+
+    .profile-name {
+      font-size: 23px;
+      font-weight: 800;
+      color: #146c43;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 12px;
+      margin-top: 15px;
+    }
+
+    .stat {
+      background: #f5f7fb;
+      border-radius: 12px;
+      padding: 14px;
+    }
+
+    .stat strong {
+      display: block;
+      font-size: 22px;
+      color: #146c43;
+    }
+
+    .stat span {
+      font-size: 13px;
+      color: #667085;
     }
 
     .quiz {
@@ -140,10 +230,18 @@
       border: 1px solid #e5e7eb;
     }
 
+    .quiz-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
     .quiz-question {
-      font-size: 18px;
+      font-size: 19px;
       font-weight: 700;
-      margin: 15px 0;
+      margin: 18px 0;
     }
 
     .option {
@@ -159,19 +257,186 @@
       background: #e9f5ee;
     }
 
+    .option.correct {
+      background: #dcfce7;
+      border-color: #16a34a;
+    }
+
+    .option.wrong {
+      background: #fee2e2;
+      border-color: #dc2626;
+    }
+
+    .option:disabled {
+      cursor: default;
+    }
+
     .result {
       margin-top: 15px;
       font-weight: 700;
     }
 
-    .status {
-      display: inline-block;
-      margin-top: 12px;
-      padding: 6px 10px;
-      border-radius: 20px;
-      background: #e9f5ee;
+    .quiz-controls {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 15px;
+    }
+
+    .select,
+    .input {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #d0d5dd;
+      border-radius: 9px;
+      background: white;
+      outline: none;
+    }
+
+    .select:focus,
+    .input:focus {
+      border-color: #146c43;
+    }
+
+    .control-small {
+      flex: 1;
+      min-width: 180px;
+    }
+
+    .leaderboard {
+      margin-top: 25px;
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 16px;
+      padding: 20px;
+    }
+
+    .leader-row {
+      display: grid;
+      grid-template-columns: 45px 1fr 100px;
+      gap: 10px;
+      padding: 12px 5px;
+      border-bottom: 1px solid #edf0f2;
+      align-items: center;
+    }
+
+    .leader-row:last-child {
+      border-bottom: none;
+    }
+
+    .rank {
+      font-weight: 800;
       color: #146c43;
-      font-size: 13px;
+    }
+
+    .xp {
+      text-align: right;
+      font-weight: 800;
+    }
+
+    .message {
+      margin: 12px 0;
+      padding: 11px 13px;
+      border-radius: 9px;
+      display: none;
+      font-size: 14px;
+    }
+
+    .message.show {
+      display: block;
+    }
+
+    .message.success {
+      background: #dcfce7;
+      color: #166534;
+    }
+
+    .message.error {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    .message.info {
+      background: #e0f2fe;
+      color: #075985;
+    }
+
+    .modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.55);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+      padding: 15px;
+    }
+
+    .modal.show {
+      display: flex;
+    }
+
+    .modal-box {
+      width: min(460px, 100%);
+      background: white;
+      border-radius: 16px;
+      padding: 25px;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 18px;
+    }
+
+    .close {
+      background: #f2f4f7;
+      color: #344054;
+      padding: 7px 11px;
+    }
+
+    .form-group {
+      margin-bottom: 13px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .form-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 15px;
+    }
+
+    .switch-text {
+      margin-top: 15px;
+      font-size: 14px;
+      color: #667085;
+      text-align: center;
+    }
+
+    .switch-text button {
+      padding: 0;
+      background: transparent;
+      color: #146c43;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 20px;
+      color: #667085;
     }
 
     footer {
@@ -183,8 +448,16 @@
 
     @media (max-width: 600px) {
       .nav {
-        flex-direction: column;
         align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .nav-buttons {
+        width: 100%;
+      }
+
+      .nav-buttons button {
+        flex: 1;
       }
 
       .hero {
@@ -192,8 +465,13 @@
       }
 
       main {
-        padding-left: 15px;
-        padding-right: 15px;
+        padding-left: 12px;
+        padding-right: 12px;
+      }
+
+      .leader-row {
+        grid-template-columns: 35px 1fr 75px;
+        font-size: 14px;
       }
     }
   </style>
@@ -207,7 +485,9 @@
 
     <div class="nav-buttons">
       <button class="btn-secondary" onclick="scrollToQuiz()">Practice</button>
-      <button class="btn-primary" onclick="showLogin()">Login</button>
+      <button class="btn-secondary" onclick="loadLeaderboard()">Leaderboard</button>
+      <button class="btn-primary" id="loginButton" onclick="showLogin()">Login</button>
+      <button class="btn-primary hidden" id="accountButton" onclick="scrollToDashboard()">Account</button>
     </div>
   </div>
 </header>
@@ -224,22 +504,48 @@
     </p>
 
     <div class="hero-actions">
-      <button class="btn-secondary" onclick="scrollToQuiz()">
-        Start Practice
-      </button>
-
-      <button class="btn-secondary" onclick="showRegister()">
-        Create Account
-      </button>
+      <button class="btn-secondary" onclick="scrollToQuiz()">Start Practice</button>
+      <button class="btn-secondary" onclick="showRegister()">Create Account</button>
     </div>
 
-    <span class="status">DENexpharm MVP • 2026</span>
+    <span class="status">DENexpharm v4.0.0 • 2026</span>
+  </section>
+
+  <section id="dashboard" class="dashboard">
+    <div class="profile-card">
+      <div class="profile-top">
+        <div>
+          <div class="profile-name" id="profileName">Student</div>
+          <div id="profileDetails">Not signed in</div>
+        </div>
+
+        <button class="btn-danger" onclick="logout()">Logout</button>
+      </div>
+
+      <div class="stats">
+        <div class="stat">
+          <strong id="profileXP">0</strong>
+          <span>XP</span>
+        </div>
+
+        <div class="stat">
+          <strong id="profileLevel">200</strong>
+          <span>Level</span>
+        </div>
+
+        <div class="stat">
+          <strong id="premiumStatus">Free</strong>
+          <span>Membership</span>
+        </div>
+      </div>
+
+      <div id="accountMessage" class="message"></div>
+    </div>
   </section>
 
   <h2 class="section-title">Explore DENexpharm</h2>
 
   <section class="grid">
-
     <div class="card">
       <h3>Pharmacology</h3>
       <p>Practise drug-related questions and strengthen your understanding.</p>
@@ -270,35 +576,67 @@
       <p>Practise pharmacy calculations and improve speed and accuracy.</p>
     </div>
 
+    <div class="card">
+      <h3>Anatomy & Physiology</h3>
+      <p>Strengthen your understanding of body structures and physiological processes.</p>
+    </div>
+
+    <div class="card">
+      <h3>Biochemistry</h3>
+      <p>Review biochemical pathways, enzymes, buffers and related concepts.</p>
+    </div>
   </section>
 
   <h2 class="section-title">Quick Practice</h2>
 
   <section class="quiz" id="quiz">
 
-    <p><strong>Pharmacy Question</strong></p>
-
-    <div class="quiz-question">
-      Which route of administration delivers a drug directly into the bloodstream?
+    <div class="quiz-header">
+      <strong>Question Practice</strong>
+      <span id="questionCounter">Ready</span>
     </div>
 
-    <button class="option" onclick="answer(false, this)">
-      A. Oral
-    </button>
+    <div class="quiz-controls">
+      <div class="control-small">
+        <select id="subjectSelect" class="select">
+          <option value="">All Subjects</option>
+          <option value="Pharmacology">Pharmacology</option>
+          <option value="Pharmaceutics">Pharmaceutics</option>
+          <option value="Pharmacognosy">Pharmacognosy</option>
+          <option value="Microbiology">Microbiology</option>
+          <option value="Clinical Pharmacy">Clinical Pharmacy</option>
+          <option value="Calculations">Calculations</option>
+          <option value="Anatomy">Anatomy</option>
+          <option value="Physiology">Physiology</option>
+          <option value="Biochemistry">Biochemistry</option>
+        </select>
+      </div>
 
-    <button class="option" onclick="answer(true, this)">
-      B. Intravenous
-    </button>
+      <button class="btn-primary" onclick="loadQuestions()">Load Questions</button>
+    </div>
 
-    <button class="option" onclick="answer(false, this)">
-      C. Topical
-    </button>
+    <div id="quizMessage" class="message"></div>
 
-    <button class="option" onclick="answer(false, this)">
-      D. Rectal
-    </button>
+    <div id="questionArea">
+      <div class="loading">
+        Click "Load Questions" to get questions from the DENexpharm backend.
+      </div>
+    </div>
 
-    <div class="result" id="result"></div>
+  </section>
+
+  <section class="leaderboard" id="leaderboard">
+
+    <div class="quiz-header">
+      <h2>Global Leaderboard</h2>
+      <button class="btn-secondary" onclick="loadLeaderboard()">Refresh</button>
+    </div>
+
+    <div id="leaderboardMessage" class="message"></div>
+
+    <div id="leaderboardList" class="loading">
+      Loading leaderboard...
+    </div>
 
   </section>
 
@@ -308,31 +646,802 @@
   © 2026 DENexpharm. Pharmacy learning and competition platform.
 </footer>
 
+
+<!-- LOGIN MODAL -->
+
+<div class="modal" id="loginModal">
+  <div class="modal-box">
+
+    <div class="modal-header">
+      <h2>Login</h2>
+      <button class="close" onclick="closeModal('loginModal')">✕</button>
+    </div>
+
+    <div id="loginMessage" class="message"></div>
+
+    <form onsubmit="login(event)">
+
+      <div class="form-group">
+        <label for="loginEmail">Email</label>
+        <input
+          id="loginEmail"
+          class="input"
+          type="email"
+          placeholder="you@example.com"
+          required
+        >
+      </div>
+
+      <div class="form-group">
+        <label for="loginPassword">Password</label>
+        <input
+          id="loginPassword"
+          class="input"
+          type="password"
+          placeholder="Your password"
+          required
+        >
+      </div>
+
+      <div class="form-actions">
+        <button class="btn-primary" type="submit">Login</button>
+        <button class="btn-secondary" type="button" onclick="showRegister()">
+          Create Account
+        </button>
+      </div>
+
+    </form>
+
+  </div>
+</div>
+
+
+<!-- REGISTER MODAL -->
+
+<div class="modal" id="registerModal">
+  <div class="modal-box">
+
+    <div class="modal-header">
+      <h2>Create Account</h2>
+      <button class="close" onclick="closeModal('registerModal')">✕</button>
+    </div>
+
+    <div id="registerMessage" class="message"></div>
+
+    <form onsubmit="register(event)">
+
+      <div class="form-group">
+        <label for="registerName">Full Name</label>
+        <input
+          id="registerName"
+          class="input"
+          type="text"
+          placeholder="Your full name"
+          required
+        >
+      </div>
+
+      <div class="form-group">
+        <label for="registerEmail">Email</label>
+        <input
+          id="registerEmail"
+          class="input"
+          type="email"
+          placeholder="you@example.com"
+          required
+        >
+      </div>
+
+      <div class="form-group">
+        <label for="registerPassword">Password</label>
+        <input
+          id="registerPassword"
+          class="input"
+          type="password"
+          minlength="6"
+          placeholder="At least 6 characters"
+          required
+        >
+      </div>
+
+      <div class="form-group">
+        <label for="registerUniversity">University</label>
+        <input
+          id="registerUniversity"
+          class="input"
+          type="text"
+          placeholder="Your university"
+        >
+      </div>
+
+      <div class="form-group">
+        <label for="registerCountry">Country</label>
+        <input
+          id="registerCountry"
+          class="input"
+          type="text"
+          value="Nigeria"
+          placeholder="Your country"
+        >
+      </div>
+
+      <div class="form-group">
+        <label for="registerLevel">Academic Level</label>
+        <select id="registerLevel" class="select">
+          <option value="100">100 Level</option>
+          <option value="200" selected>200 Level</option>
+          <option value="300">300 Level</option>
+          <option value="400">400 Level</option>
+          <option value="500">500 Level</option>
+          <option value="600">600 Level</option>
+          <option value="Graduate">Graduate</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+
+      <div class="form-actions">
+        <button class="btn-primary" type="submit">Create Account</button>
+        <button class="btn-secondary" type="button" onclick="showLogin()">
+          I Already Have an Account
+        </button>
+      </div>
+
+    </form>
+
+  </div>
+</div>
+
+
 <script>
+  "use strict";
+
+  const API = "/api";
+
+  let token = localStorage.getItem("denexpharm_token") || "";
+  let currentUser = null;
+  let questions = [];
+  let currentQuestionIndex = 0;
+  let currentScore = 0;
+  let answered = false;
+
+
+  function escapeHTML(value) {
+    return String(value ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
+
+
+  function showMessage(id, text, type = "info") {
+    const el = document.getElementById(id);
+
+    if (!el) return;
+
+    el.textContent = text;
+    el.className = "message show " + type;
+  }
+
+
+  function hideMessage(id) {
+    const el = document.getElementById(id);
+
+    if (el) {
+      el.className = "message";
+      el.textContent = "";
+    }
+  }
+
+
+  function closeModal(id) {
+    document.getElementById(id).classList.remove("show");
+  }
+
+
+  function showLogin() {
+    closeModal("registerModal");
+    hideMessage("loginMessage");
+    document.getElementById("loginModal").classList.add("show");
+  }
+
+
+  function showRegister() {
+    closeModal("loginModal");
+    hideMessage("registerMessage");
+    document.getElementById("registerModal").classList.add("show");
+  }
+
+
+  function saveToken(value) {
+    token = value || "";
+
+    if (token) {
+      localStorage.setItem("denexpharm_token", token);
+    } else {
+      localStorage.removeItem("denexpharm_token");
+    }
+  }
+
+
+  async function apiRequest(endpoint, options = {}) {
+
+    const headers = {
+      "Content-Type": "application/json",
+      ...(options.headers || {})
+    };
+
+    if (token) {
+      headers.Authorization = "Bearer " + token;
+    }
+
+    const response = await fetch(API + endpoint, {
+      ...options,
+      headers
+    });
+
+    let data = {};
+
+    try {
+      data = await response.json();
+    } catch {
+      data = {};
+    }
+
+    if (!response.ok) {
+      throw new Error(data.error || "Request failed");
+    }
+
+    return data;
+  }
+
+
+  async function register(event) {
+
+    event.preventDefault();
+
+    hideMessage("registerMessage");
+
+    const name = document.getElementById("registerName").value.trim();
+    const email = document.getElementById("registerEmail").value.trim();
+    const password = document.getElementById("registerPassword").value;
+    const university = document.getElementById("registerUniversity").value.trim();
+    const country = document.getElementById("registerCountry").value.trim();
+    const level = document.getElementById("registerLevel").value;
+
+    if (password.length < 6) {
+      showMessage(
+        "registerMessage",
+        "Password must be at least 6 characters.",
+        "error"
+      );
+      return;
+    }
+
+    try {
+
+      const data = await apiRequest("/auth/register", {
+        method: "POST",
+        body: JSON.stringify({
+          name,
+          email,
+          password,
+          university,
+          country,
+          level
+        })
+      });
+
+      saveToken(data.token);
+      currentUser = data.user;
+
+      closeModal("registerModal");
+      updateUI();
+
+      showMessage(
+        "accountMessage",
+        "Account created successfully. Welcome to DENexpharm!",
+        "success"
+      );
+
+      document.getElementById("dashboard").scrollIntoView({
+        behavior: "smooth"
+      });
+
+    } catch (error) {
+
+      showMessage(
+        "registerMessage",
+        error.message,
+        "error"
+      );
+    }
+  }
+
+
+  async function login(event) {
+
+    event.preventDefault();
+
+    hideMessage("loginMessage");
+
+    const email = document.getElementById("loginEmail").value.trim();
+    const password = document.getElementById("loginPassword").value;
+
+    try {
+
+      const data = await apiRequest("/auth/login", {
+        method: "POST",
+        body: JSON.stringify({
+          email,
+          password
+        })
+      });
+
+      saveToken(data.token);
+      currentUser = data.user;
+
+      closeModal("loginModal");
+      updateUI();
+
+      showMessage(
+        "accountMessage",
+        "Login successful. Welcome back!",
+        "success"
+      );
+
+      document.getElementById("dashboard").scrollIntoView({
+        behavior: "smooth"
+      });
+
+    } catch (error) {
+
+      showMessage(
+        "loginMessage",
+        error.message,
+        "error"
+      );
+    }
+  }
+
+
+  async function loadCurrentUser() {
+
+    if (!token) {
+      updateUI();
+      return;
+    }
+
+    try {
+
+      const data = await apiRequest("/me", {
+        method: "GET"
+      });
+
+      currentUser = data.user;
+
+      updateUI();
+
+    } catch (error) {
+
+      saveToken("");
+      currentUser = null;
+      updateUI();
+    }
+  }
+
+
+  function updateUI() {
+
+    const loginButton = document.getElementById("loginButton");
+    const accountButton = document.getElementById("accountButton");
+    const dashboard = document.getElementById("dashboard");
+
+    if (currentUser) {
+
+      loginButton.classList.add("hidden");
+      accountButton.classList.remove("hidden");
+      dashboard.classList.add("show");
+
+      document.getElementById("profileName").textContent =
+        currentUser.name || "Student";
+
+      document.getElementById("profileDetails").textContent =
+        [
+          currentUser.email,
+          currentUser.university,
+          currentUser.country
+        ]
+        .filter(Boolean)
+        .join(" • ");
+
+      document.getElementById("profileXP").textContent =
+        Number(currentUser.xp || 0);
+
+      document.getElementById("profileLevel").textContent =
+        currentUser.level || "200";
+
+      document.getElementById("premiumStatus").textContent =
+        currentUser.premium ? "Premium" : "Free";
+
+    } else {
+
+      loginButton.classList.remove("hidden");
+      accountButton.classList.add("hidden");
+      dashboard.classList.remove("show");
+    }
+  }
+
+
+  function logout() {
+
+    saveToken("");
+    currentUser = null;
+
+    updateUI();
+
+    showMessage(
+      "quizMessage",
+      "You have been logged out.",
+      "info"
+    );
+  }
+
+
   function scrollToQuiz() {
+
     document.getElementById("quiz").scrollIntoView({
       behavior: "smooth"
     });
   }
 
-  function answer(correct, button) {
-    const result = document.getElementById("result");
 
-    if (correct) {
-      result.textContent = "Correct! Intravenous administration delivers the drug directly into the bloodstream.";
-    } else {
-      result.textContent = "Not quite. Try again.";
+  function scrollToDashboard() {
+
+    document.getElementById("dashboard").scrollIntoView({
+      behavior: "smooth"
+    });
+  }
+
+
+  async function loadQuestions() {
+
+    const subject = document.getElementById("subjectSelect").value;
+
+    showMessage(
+      "quizMessage",
+      "Loading questions...",
+      "info"
+    );
+
+    document.getElementById("questionArea").innerHTML =
+      '<div class="loading">Loading questions...</div>';
+
+    try {
+
+      const query = subject
+        ? "?subject=" + encodeURIComponent(subject)
+        : "";
+
+      const data = await apiRequest("/questions" + query, {
+        method: "GET"
+      });
+
+      questions = Array.isArray(data.questions)
+        ? data.questions
+        : [];
+
+      currentQuestionIndex = 0;
+      currentScore = 0;
+
+      hideMessage("quizMessage");
+
+      if (!questions.length) {
+
+        document.getElementById("questionArea").innerHTML = `
+          <div class="loading">
+            No questions are currently available for this subject.
+          </div>
+        `;
+
+        document.getElementById("questionCounter").textContent = "0 questions";
+        return;
+      }
+
+      document.getElementById("questionCounter").textContent =
+        questions.length + " question" + (questions.length === 1 ? "" : "s");
+
+      renderQuestion();
+
+    } catch (error) {
+
+      showMessage(
+        "quizMessage",
+        error.message,
+        "error"
+      );
+
+      document.getElementById("questionArea").innerHTML = `
+        <div class="loading">
+          Could not load questions.
+        </div>
+      `;
     }
   }
 
-  function showLogin() {
-    alert("Login functionality will connect to the DENexpharm backend.");
+
+  function renderQuestion() {
+
+    if (!questions.length) return;
+
+    const q = questions[currentQuestionIndex];
+
+    answered = false;
+
+    let options = q.options;
+
+    if (typeof options === "string") {
+      try {
+        options = JSON.parse(options);
+      } catch {
+        options = [];
+      }
+    }
+
+    if (!Array.isArray(options)) {
+      options = [];
+    }
+
+    const letters = ["A", "B", "C", "D"];
+
+    let html = `
+      <div>
+        <strong>
+          ${escapeHTML(q.subject || "General")}
+        </strong>
+
+        <div class="quiz-question">
+          ${escapeHTML(q.question)}
+        </div>
+    `;
+
+    options.forEach((option, index) => {
+
+      html += `
+        <button
+          class="option"
+          data-index="${index}"
+          onclick="answerQuestion(${index})"
+        >
+          ${letters[index] || (index + 1) + "."}
+          ${escapeHTML(option)}
+        </button>
+      `;
+    });
+
+    html += `
+        <div class="result" id="questionResult"></div>
+
+        <div class="form-actions">
+          <button
+            id="nextQuestionButton"
+            class="btn-primary hidden"
+            onclick="nextQuestion()"
+          >
+            ${currentQuestionIndex === questions.length - 1
+              ? "Finish Quiz"
+              : "Next Question"}
+          </button>
+        </div>
+      </div>
+    `;
+
+    document.getElementById("questionArea").innerHTML = html;
+
+    document.getElementById("questionCounter").textContent =
+      "Question " +
+      (currentQuestionIndex + 1) +
+      " of " +
+      questions.length;
   }
 
-  function showRegister() {
-    alert("Registration functionality will connect to the DENexpharm backend.");
-  }
-</script>
 
-</body>
-  </html>
+  function answerQuestion(selectedIndex) {
+
+    if (answered) return;
+
+    const q = questions[currentQuestionIndex];
+
+    const correctIndex = Number(q.answer_index);
+
+    answered = true;
+
+    const buttons = document.querySelectorAll(".option");
+
+    buttons.forEach(button => {
+
+      const index = Number(button.dataset.index);
+
+      button.disabled = true;
+
+      if (index === correctIndex) {
+        button.classList.add("correct");
+      }
+
+      if (index === selectedIndex && index !== correctIndex) {
+        button.classList.add("wrong");
+      }
+    });
+
+    const result = document.getElementById("questionResult");
+
+    if (selectedIndex === correctIndex) {
+
+      currentScore++;
+
+      result.textContent =
+        "Correct! " +
+        (q.explanation || "");
+
+    } else {
+
+      result.textContent =
+        "Incorrect. " +
+        (q.explanation || "Review the question and explanation.");
+    }
+
+    document
+      .getElementById("nextQuestionButton")
+      .classList.remove("hidden");
+  }
+
+
+  async function nextQuestion() {
+
+    if (currentQuestionIndex < questions.length - 1) {
+
+      currentQuestionIndex++;
+      renderQuestion();
+      return;
+    }
+
+    await finishQuiz();
+  }
+
+
+  async function finishQuiz() {
+
+    const total = questions.length;
+
+    const percentage =
+      total > 0
+        ? Math.round((currentScore / total) * 100)
+        : 0;
+
+    document.getElementById("questionArea").innerHTML = `
+      <div class="card">
+        <h3>Quiz Complete</h3>
+        <p style="margin-top:8px;">
+          You scored <strong>${currentScore}/${total}</strong>
+          (${percentage}%).
+        </p>
+
+        ${
+          currentUser
+            ? "<p style='margin-top:8px;'>Your score will be added to your DENexpharm XP.</p>"
+            : "<p style='margin-top:8px;'>Create an account or login to save your score and earn XP.</p>"
+        }
+
+        <div class="form-actions">
+          <button class="btn-primary" onclick="loadQuestions()">
+            Practise Again
+          </button>
+
+          ${
+            !currentUser
+              ? `<button class="btn-secondary" onclick="showRegister()">Create Account</button>`
+              : ""
+          }
+        </div>
+      </div>
+    `;
+
+    if (!currentUser) return;
+
+    const subject =
+      document.getElementById("subjectSelect").value ||
+      "General";
+
+    try {
+
+      const data = await apiRequest("/scores", {
+        method: "POST",
+        body: JSON.stringify({
+          subject,
+          score: currentScore,
+          total
+        })
+      });
+
+      currentUser.xp =
+        Number(currentUser.xp || 0) +
+        Number(data.xp || 0);
+
+      updateUI();
+
+      showMessage(
+        "accountMessage",
+        "Quiz saved. You earned " + Number(data.xp || 0) + " XP.",
+        "success"
+      );
+
+      loadLeaderboard();
+
+    } catch (error) {
+
+      showMessage(
+        "quizMessage",
+        "Your quiz was completed, but the score could not be saved: " +
+        error.message,
+        "error"
+      );
+    }
+  }
+
+
+  async function loadLeaderboard() {
+
+    const list = document.getElementById("leaderboardList");
+
+    list.innerHTML =
+      '<div class="loading">Loading leaderboard...</div>';
+
+    hideMessage("leaderboardMessage");
+
+    try {
+
+      const data = await apiRequest("/leaderboard", {
+        method: "GET"
+      });
+
+      const leaderboard = Array.isArray(data.leaderboard)
+        ? data.leaderboard
+        : [];
+
+      if (!leaderboard.length) {
+
+        list.innerHTML =
+          '<div class="loading">No students have scores yet.</div>';
+
+        return;
+      }
+
+      list.innerHTML = leaderboard
+        .map((student, index) => {
+
+          return `
+            <div class="leader-row">
+              <div class="rank">#${index + 1}</div>
+
+              <div>
+                <strong>${escapeHTML(student.name)}</strong>
+                <div style="font-size:12px;color:#667085;">
+                  ${escapeHTML(student.university || student.country || "")}
+                </div>
+              </div>
+
+              <div class="xp">
+                ${Number(student.xp || 0)} XP
+              </div>
+            </div>
+          `;
+        })
+        .join("");
+
+    } catch (error) {
+
+      list.innerHTML =
+        '<div class="loading">Could not load leaderboard.</div>';
+
+      showMessage(
