@@ -1,254 +1,73 @@
-# DENexpharm
+# DENexpharm v4.0.0
 
-DENexpharm is a pharmacy learning, quiz, practice, and competition platform designed for pharmacy students worldwide, with strong support for Nigerian pharmacy students.
+DENexpharm is a pharmacy-learning and quiz MVP designed for pharmacy students, with Nigeria support and a structure that can be expanded for international users.
 
-## Main Features
+## Included in this package
 
-- Pharmacy quiz and practice questions
-- Multiple subjects and topics
-- Explanations for questions
-- Quick Practice mode
-- Exam mode
-- Timed quizzes
-- Topic-based quizzes
-- Weak-topic practice
-- Practical/case-based questions
-- XP and progress tracking
-- Streaks and achievements
-- Leaderboards
-- Daily challenges
-- Saved difficult questions
-- GPA calculator
-- Pharmacy library
-- Pharmacopoeia learning concepts
-- Pharmacy language assistant
-- User accounts and authentication
-- Premium features
-- Advertising support
-- Payment integration structure
-- Admin functionality
-- Scalable question-bank structure
+- `server.js` — Express backend and API
+- `package.json` — Node.js dependencies and start command
+- `public/index.html` — main web application
+- `public/manifest.json` — web-app manifest
+- `public/404.html` — fallback page
+- `data/db.json` — local MVP data store
+- `schema.sql` — PostgreSQL database schema for future/production use
+- `.env.example` — environment-variable template
+- `render.yaml` — Render deployment configuration
+- `.gitignore` — files that should not be committed
 
-## Technology
+## Run locally
 
-DENexpharm uses:
+Requirements: Node.js 18 or newer.
 
-- Node.js
-- Express.js
-- HTML
-- CSS
-- JavaScript
-- JSON database for MVP use
-- PostgreSQL-compatible database structure for future production scaling
-
-## Project Structure
-
-DENexpharm/
-
-- server.js
-- package.json
-- public/
-  - index.html
-- data/
-  - db.json
-  - questions.json
-- schema.sql
-- .env.example
-- README.md
-
-## Running Locally
-
-Install Node.js 18 or newer.
-
-Open a terminal inside the DENexpharm project folder and run:
-
+```bash
 npm install
-
-Then start the application:
-
 npm start
+```
 
-The application should normally be available at:
+Then open the local address shown by the server (normally `http://localhost:3000`).
 
-http://localhost:3000
+## Deploy to Render
 
-## GitHub Deployment
+The current project is an Express/Node.js application, so deploy the complete project as a **Render Web Service**, not as a Cloudflare Pages static site.
 
-1. Create a GitHub repository.
-2. Extract the DENexpharm ZIP file.
-3. Upload the contents of the DENexpharm folder to the GitHub repository.
-4. Make sure package.json and server.js are in the main/root directory.
-5. Make sure the public folder contains index.html.
-6. Commit the files.
+1. Extract this ZIP.
+2. Create a GitHub repository.
+3. Upload the contents of the `DENexpharm` folder to the repository.
+4. In Render, choose **New → Web Service** and connect the GitHub repository.
+5. Build command: `npm install`
+6. Start command: `npm start`
+7. Add the environment variables required for the services you enable.
+8. Deploy and open the Render URL provided by Render.
 
-## Render Deployment
+`render.yaml` is included as a reference for the Render deployment configuration.
 
-DENexpharm is designed to run as a Node.js/Express web service.
+## Environment variables
 
-On Render:
+Copy `.env.example` to `.env` when running locally and fill in the values you actually use. Never commit real secret keys to GitHub.
 
-1. Create a new Web Service.
-2. Connect your GitHub repository.
-3. Select the DENexpharm repository.
-4. Use the following build command:
+Typical variables include:
 
-npm install
+- `PORT` — server port; Render supplies its own port automatically.
+- `FRONTEND_ORIGIN` — allowed frontend origin when using a separate frontend.
+- `DATABASE_URL` — PostgreSQL connection string when using PostgreSQL.
+- `SESSION_SECRET` — long random secret for sessions.
+- `PAYSTACK_SECRET_KEY` — Paystack secret key if payment features are enabled.
+- `PAYSTACK_PUBLIC_KEY` — Paystack public key if payment features are enabled.
 
-5. Use the following start command:
+## Important deployment note
 
-npm start
+The JSON data store is suitable for an MVP/demo. For durable production data, use PostgreSQL (for example, Render PostgreSQL, Neon, or Supabase) and configure `DATABASE_URL` according to the backend implementation.
 
-6. Select an appropriate Node.js environment.
-7. Add the required environment variables.
-8. Deploy the service.
-
-Render will provide a public URL for the application after deployment.
-
-## Environment Variables
-
-Copy .env.example to .env when running locally.
-
-Typical production variables may include:
-
-PORT=3000
-
-NODE_ENV=production
-
-FRONTEND_ORIGIN=https://your-frontend-domain.com
-
-DATABASE_URL=your_database_connection_string
-
-PAYSTACK_SECRET_KEY=your_paystack_secret_key
-
-PAYSTACK_PUBLIC_KEY=your_paystack_public_key
-
-SESSION_SECRET=your_long_random_session_secret
-
-Do not publish secret keys or passwords on GitHub.
-
-## Database
-
-The MVP includes JSON data files for simple development and testing.
-
-For production use, PostgreSQL is recommended.
-
-The included schema.sql provides the structure needed for a PostgreSQL database.
-
-Possible production database providers include:
-
-- Render PostgreSQL
-- Neon
-- Supabase
-
-## Payments
-
-The application contains the structure needed for premium/payment integration.
-
-Before accepting real payments:
-
-- Add your real payment provider credentials.
-- Configure payment verification.
-- Configure the webhook endpoint.
-- Test transactions in the provider's test environment.
-- Never expose secret payment keys in frontend code.
-
-## Questions
-
-The question bank is designed to be expanded.
-
-Questions can eventually be organized by:
-
-- Subject
-- Topic
-- Difficulty
-- Year
-- Country
-- Question type
-- Practical/case category
-
-The platform can therefore be expanded from the initial question set to thousands or more questions.
-
-## Free and Premium Features
-
-The platform can support:
-
-### Free
-
-- Basic quizzes
-- Selected questions
-- Basic progress tracking
-- Limited advertisements
-
-### Premium
-
-- Larger question bank
-- Advanced mock examinations
-- Detailed analytics
-- Additional learning resources
-- Premium practice modes
-- Additional library features
-
-Premium features should be configured and tested before real-world launch.
+Do not place payment secret keys or other private credentials inside `public/index.html`, GitHub, or screenshots.
 
 ## Cloudflare
 
-The current DENexpharm application uses Node.js and Express.
+Cloudflare Pages is suitable for a static frontend. This package contains a Node/Express backend, so the complete package should be deployed to a Node-compatible host such as Render unless the backend is separately rewritten for Cloudflare Workers.
 
-Therefore, the complete application should be deployed on a Node.js-compatible service such as Render.
+## Project goal
 
-Cloudflare Pages can be used for a separate static frontend, but the current Express server should not simply be uploaded to Cloudflare Pages as a normal Node.js server.
+DENexpharm is intended to grow into a larger pharmacy-learning platform with question banks, practice and exam modes, explanations, progress tracking, leaderboards, challenges, pharmacy calculations, reference resources, language assistance, and optional premium features.
 
-Cloudflare can also be added later for domain management, DNS, caching, or other services.
+## License / content
 
-## Security
-
-Before a public production launch:
-
-- Use HTTPS.
-- Use a strong SESSION_SECRET.
-- Never commit .env files.
-- Never expose payment secret keys.
-- Use production database credentials.
-- Configure CORS correctly.
-- Keep dependencies updated.
-- Enable appropriate rate limiting.
-- Validate user input.
-- Verify payment webhooks.
-- Use secure session settings.
-
-## Important
-
-The application is an MVP foundation and should be thoroughly tested before accepting real users or payments.
-
-Educational content should also be reviewed for accuracy before being used as official teaching material.
-
-## Future Development
-
-Future versions can include:
-
-- 10,000+ questions
-- 50,000+ questions
-- 100,000+ questions
-- PostgreSQL/Supabase production database
-- Mobile application
-- Advanced battle system
-- Global pharmacy competitions
-- More countries and curricula
-- More languages
-- Push notifications
-- Advanced analytics
-- Teacher/institution accounts
-- Improved admin dashboard
-- Payment subscriptions
-- More pharmacy calculations
-- AI-assisted learning features
-
-## Project Goal
-
-The long-term goal of DENexpharm is to provide a structured digital learning and competition environment for pharmacy students, combining learning, practice, revision, competition, and progress tracking in one platform.
-
----
-
-DENexpharm
-
-Pharmacy Learning. Practice. Competition.
+This MVP is a project starter. Add only content and reference material that you have permission to distribute. Do not copy copyrighted pharmacopoeia monographs, textbooks, or question banks without the appropriate rights.
