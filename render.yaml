@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: denexpharm
+    runtime: node
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: PAYSTACK_SECRET_KEY
+        sync: false
+      - key: PAYSTACK_CALLBACK_URL
+        sync: false
+      - key: PREMIUM_PRICE
+        value: "5000"
+      - key: PREMIUM_CURRENCY
+        value: NGN
