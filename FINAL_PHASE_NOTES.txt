@@ -1,0 +1,35 @@
+DENexPharm 7.1.0 — FINAL PHASE
+
+Verified fixes in this build:
+
+1. QUIZ NEXT BUG
+   The question screen now replaces the previous question instead of appending another
+   question card with duplicate option/feedback IDs. This directly fixes the reported
+   Next-button/old-question DOM problem. render() also clears the app before drawing
+   a new main screen.
+
+2. PAYMENT DIAGNOSTICS
+   Paystack initialization errors are now returned to the browser as the actual safe
+   Paystack error message instead of only the generic production message “Server error”.
+   This lets the final deployment test identify an incorrect/missing Paystack setting.
+
+3. QUESTION BANK
+   Existing bank retained: 10,000 questions; 6 levels; 11 subjects; 10 countries.
+
+4. PAYMENT SECURITY
+   Amount/currency remain server-controlled. Premium activation still requires
+   server-side Paystack verification plus the matching internal payment record.
+
+5. REQUIRED RENDER ENVIRONMENT
+   NODE_ENV=production
+   DATABASE_URL=<Render PostgreSQL internal URL>
+   JWT_SECRET=<32+ character secret>
+   PAYSTACK_SECRET_KEY=sk_live_...
+   PREMIUM_PRICE=5000
+   PREMIUM_CURRENCY=NGN
+   PAYSTACK_CALLBACK_URL=https://denexpharm-010.onrender.com/api/payments/callback
+
+6. PAYSTACK WEBHOOK
+   https://denexpharm-010.onrender.com/api/payments/webhook
+
+Do not put secret keys in the frontend or GitHub.
